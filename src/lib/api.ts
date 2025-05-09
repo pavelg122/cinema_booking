@@ -51,9 +51,12 @@ export const api = {
         movies (*),
         halls (*)
       `)
-      .gte('screening_date', date || new Date().toISOString().split('T')[0])
       .order('screening_date')
       .order('start_time');
+
+    if (date) {
+      query = query.gte('screening_date', date);
+    }
 
     if (movieId) {
       query = query.eq('movie_id', movieId);

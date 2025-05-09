@@ -20,6 +20,10 @@ const HomePage: React.FC = () => {
           api.getPopularMovies()
         ]);
         
+        if (!moviesData || !popularMoviesData) {
+          throw new Error('Failed to fetch data');
+        }
+        
         setMovies(moviesData);
         setPopularMovies(popularMoviesData);
       } catch (error) {
