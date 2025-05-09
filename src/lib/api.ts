@@ -11,12 +11,18 @@ type SeatRow = Database['public']['Tables']['seat_rows']['Row'];
 export const api = {
   // Movies
   async getMovies() {
+    console.log('Fetching movies...');
     const { data, error } = await supabase
       .from('movies')
       .select('*')
       .order('release_date', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching movies:', error);
+      throw error;
+    }
+
+    console.log('Movies fetched:', data);
     return data;
   },
 
@@ -32,13 +38,19 @@ export const api = {
   },
 
   async getPopularMovies() {
+    console.log('Fetching popular movies...');
     const { data, error } = await supabase
       .from('popular_movies')
       .select('*')
       .order('booking_count', { ascending: false })
       .limit(5);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching popular movies:', error);
+      throw error;
+    }
+
+    console.log('Popular movies fetched:', data);
     return data;
   },
 

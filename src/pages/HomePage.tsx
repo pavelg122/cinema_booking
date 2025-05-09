@@ -15,17 +15,21 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Fetching data for homepage...');
         const [moviesData, popularMoviesData] = await Promise.all([
           api.getMovies(),
           api.getPopularMovies()
         ]);
         
-        if (!moviesData || !popularMoviesData) {
-          throw new Error('Failed to fetch data');
+        console.log('Movies data:', moviesData);
+        console.log('Popular movies data:', popularMoviesData);
+
+        if (!moviesData) {
+          throw new Error('No movies data received');
         }
-        
+
         setMovies(moviesData);
-        setPopularMovies(popularMoviesData);
+        setPopularMovies(popularMoviesData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load movies. Please try again later.');
@@ -55,6 +59,22 @@ const HomePage: React.FC = () => {
             className="btn btn-primary"
           >
             Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!movies.length) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-white mb-4">No movies available at the moment.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-primary"
+          >
+            Refresh
           </button>
         </div>
       </div>
