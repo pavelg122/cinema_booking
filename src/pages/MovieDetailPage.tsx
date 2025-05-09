@@ -80,11 +80,13 @@ const MovieDetailPage: React.FC = () => {
   // Group screenings by hall
   const screeningsByHall: Record<string, typeof screenings> = {};
   dateScreenings.forEach(screening => {
-    const hallName = screening.halls.name;
-    if (!screeningsByHall[hallName]) {
-      screeningsByHall[hallName] = [];
+    if (screening.halls) {
+      const hallName = screening.halls.name;
+      if (!screeningsByHall[hallName]) {
+        screeningsByHall[hallName] = [];
+      }
+      screeningsByHall[hallName].push(screening);
     }
-    screeningsByHall[hallName].push(screening);
   });
 
   return (
