@@ -17,23 +17,23 @@ const HomePage: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log('Starting data fetch for homepage...');
-        const [moviesData, popularMoviesData] = await Promise.all([
-          api.getMovies(),
-          api.getPopularMovies()
-        ]);
+        const moviesData = await api.getMovies();
+        console.log('Movies data fetched:', moviesData);
         
-        console.log('Raw movies data:', moviesData);
-        console.log('Raw popular movies data:', popularMoviesData);
-
-        if (!moviesData?.length) {
-          console.warn('No movies data received');
-          setMovies([]);
-        } else {
+        if (Array.isArray(moviesData)) {
           setMovies(moviesData);
+        } else {
+          console.error('Invalid movies data format:', moviesData);
+          setError('Failed to load movies data');
         }
 
-        if (popularMoviesData?.length) {
+        const popularMoviesData = await api.getPopularMovies();
+        console.log('Popular movies data fetched:', popularMoviesData);
+        
+        if (Array.isArray(popularMoviesData)) {
           setPopularMovies(popularMoviesData);
+        } else {
+          console.error('Invalid popular movies data format:', popularMoviesData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
