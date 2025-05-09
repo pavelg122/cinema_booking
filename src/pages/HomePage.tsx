@@ -5,10 +5,11 @@ import { api } from '../lib/api';
 import type { Database } from '../types/database.types';
 
 type Movie = Database['public']['Tables']['movies']['Row'];
+type PopularMovie = Database['public']['Views']['popular_movies']['Row'];
 
 const HomePage: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [popularMovies, setPopularMovies] = useState<any[]>([]);
+  const [popularMovies, setPopularMovies] = useState<PopularMovie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
