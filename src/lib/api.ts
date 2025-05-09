@@ -22,6 +22,11 @@ export const api = {
       throw error;
     }
 
+    if (!data) {
+      console.error('No movies data returned');
+      return [];
+    }
+
     console.log('Movies fetched:', data);
     return data;
   },
@@ -48,6 +53,11 @@ export const api = {
     if (error) {
       console.error('Error fetching popular movies:', error);
       throw error;
+    }
+
+    if (!data) {
+      console.error('No popular movies data returned');
+      return [];
     }
 
     console.log('Popular movies fetched:', data);
