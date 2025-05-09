@@ -5,11 +5,10 @@ import { api } from '../lib/api';
 import type { Database } from '../types/database.types';
 
 type Movie = Database['public']['Tables']['movies']['Row'];
-type PopularMovie = Database['public']['Views']['popular_movies']['Row'];
 
 const HomePage: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [popularMovies, setPopularMovies] = useState<PopularMovie[]>([]);
+  const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -17,24 +16,18 @@ const HomePage: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log('Starting data fetch for homepage...');
-        const moviesData = await api.getMovies();
-        console.log('Movies data fetched:', moviesData);
         
-        if (Array.isArray(moviesData)) {
-          setMovies(moviesData);
-        } else {
-          console.error('Invalid movies data format:', moviesData);
-          setError('Failed to load movies data');
-        }
+        // Fetch both regular and popular movies
+        const [moviesData, popularMoviesData] = await Promise.all([
+          api.getMovies(),
+          api.getPopularMovies()
+        ]);
 
-        const popularMoviesData = await api.getPopularMovies();
+        console.log('Movies data fetched:', moviesData);
         console.log('Popular movies data fetched:', popularMoviesData);
         
-        if (Array.isArray(popularMoviesData)) {
-          setPopularMovies(popularMoviesData);
-        } else {
-          console.error('Invalid popular movies data format:', popularMoviesData);
-        }
+        setMovies(moviesData);
+        setPopularMovies(popularMoviesData);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load movies. Please try again later.');
@@ -70,22 +63,6 @@ const HomePage: React.FC = () => {
     );
   }
 
-  if (!movies.length) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-white mb-4">No movies available at the moment.</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="btn btn-primary"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
   // Get featured movies (first 3)
   const featuredMovies = movies.slice(0, 3);
   

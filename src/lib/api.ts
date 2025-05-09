@@ -22,13 +22,8 @@ export const api = {
       throw error;
     }
 
-    if (!data) {
-      console.error('No movies data returned');
-      return [];
-    }
-
     console.log('Movies fetched:', data);
-    return data;
+    return data || [];
   },
 
   async getMovie(id: string) {
@@ -45,9 +40,9 @@ export const api = {
   async getPopularMovies() {
     console.log('Fetching popular movies...');
     const { data, error } = await supabase
-      .from('popular_movies')
+      .from('movies')
       .select('*')
-      .order('booking_count', { ascending: false })
+      .order('imdb_rating', { ascending: false })
       .limit(5);
     
     if (error) {
@@ -55,13 +50,8 @@ export const api = {
       throw error;
     }
 
-    if (!data) {
-      console.error('No popular movies data returned');
-      return [];
-    }
-
     console.log('Popular movies fetched:', data);
-    return data;
+    return data || [];
   },
 
   // Screenings
