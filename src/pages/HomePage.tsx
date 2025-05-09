@@ -1,9 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Popcorn, Star, Clock } from 'lucide-react';
-import { movies } from '../data/mockData';
+import { api } from '../lib/api';
+import type { Database } from '../types/database.types';
+
+type Movie = Database['public']['Tables']['movies']['Row'];
 
 const HomePage: React.FC = () => {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [popularMovies, setPopularMovies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [moviesData, popularMoviesData] = await Promise.all([
+          api.getMovies(),
+          api.getPopularMovies()
+        ]);
+        
+        setMovies(moviesData);
+        setPopularMovies(popularMoviesData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+  
   // Get featured movies (first 3)
   const featuredMovies = movies.slice(0, 3);
   
@@ -16,8 +51,8 @@ const HomePage: React.FC = () => {
       <section className="relative h-[70vh] bg-gradient-to-r from-secondary-950 to-secondary-900 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src={featuredMovies[0].bannerUrl} 
-            alt={featuredMovies[0].title} 
+            src={featuredMovies[0]?.banner_url} 
+            alt={featuredMovies[0]?.title} 
             className="w-full h-full object-cover opacity-30"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-secondary-950 via-secondary-900/80 to-transparent"></div>
@@ -25,27 +60,27 @@ const HomePage: React.FC = () => {
         
         <div className="relative z-10 container mx-auto px-4 flex items-center h-full">
           <div className="max-w-2xl animate-fade-in">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">{featuredMovies[0].title}</h1>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">{featuredMovies[0]?.title}</h1>
             <div className="flex items-center space-x-4 mb-4">
               <div className="flex items-center">
                 <Star className="h-5 w-5 text-accent-500 mr-1" />
-                <span>{featuredMovies[0].imdbRating}/10</span>
+                <span>{featuredMovies[0]?.imdb_rating}/10</span>
               </div>
               <div className="flex items-center">
                 <Clock className="h-5 w-5 text-accent-500 mr-1" />
-                <span>{featuredMovies[0].duration} min</span>
+                <span>{featuredMovies[0]?.duration} min</span>
               </div>
-              <span className="px-2 py-1 bg-secondary-800 rounded-md text-xs">{featuredMovies[0].rating}</span>
-              {featuredMovies[0].genre.slice(0, 2).map((genre, index) => (
+              <span className="px-2 py-1 bg-secondary-800 rounded-md text-xs">{featuredMovies[0]?.rating}</span>
+              {featuredMovies[0]?.genre.slice(0, 2).map((genre, index) => (
                 <span key={index} className="px-2 py-1 bg-secondary-800 rounded-md text-xs">{genre}</span>
               ))}
             </div>
-            <p className="text-secondary-300 mb-6 text-base md:text-lg">{featuredMovies[0].description}</p>
+            <p className="text-secondary-300 mb-6 text-base md:text-lg">{featuredMovies[0]?.description}</p>
             <div className="flex flex-wrap gap-4">
-              <Link to={`/movies/${featuredMovies[0].id}`} className="btn btn-primary">
+              <Link to={`/movies/${featuredMovies[0]?.id}`} className="btn btn-primary">
                 Get Tickets
               </Link>
-              <a href={featuredMovies[0].trailerUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+              <a href={featuredMovies[0]?.trailer_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
                 Watch Trailer
               </a>
             </div>
@@ -67,7 +102,7 @@ const HomePage: React.FC = () => {
             <Link to={`/movies/${movie.id}`} key={movie.id} className="movie-card group">
               <div className="aspect-[2/3] relative overflow-hidden rounded-lg">
                 <img 
-                  src={movie.posterUrl} 
+                  src={movie.poster_url} 
                   alt={movie.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
@@ -76,7 +111,7 @@ const HomePage: React.FC = () => {
                   <h3 className="text-white font-semibold line-clamp-1">{movie.title}</h3>
                   <div className="flex items-center mt-1">
                     <Star className="h-4 w-4 text-accent-500 mr-1" />
-                    <span className="text-white text-sm">{movie.imdbRating}</span>
+                    <span className="text-white text-sm">{movie.imdb_rating}</span>
                   </div>
                 </div>
               </div>
@@ -130,7 +165,7 @@ const HomePage: React.FC = () => {
           {featuredMovies.slice(1, 3).map(movie => (
             <div key={movie.id} className="relative rounded-lg overflow-hidden group">
               <img 
-                src={movie.bannerUrl} 
+                src={movie.banner_url} 
                 alt={movie.title} 
                 className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
               />
@@ -139,7 +174,7 @@ const HomePage: React.FC = () => {
                 <h3 className="text-2xl font-bold text-white mb-2">{movie.title}</h3>
                 <p className="text-secondary-300 mb-4 line-clamp-2">{movie.description}</p>
                 <div className="flex items-center space-x-4 mb-4">
-                  <span className="text-primary-500">Release: {new Date(movie.releaseDate).toLocaleDateString()}</span>
+                  <span className="text-primary-500">Release: {new Date(movie.release_date).toLocaleDateString()}</span>
                   <span className="text-accent-500">{movie.duration} min</span>
                 </div>
                 <Link to={`/movies/${movie.id}`} className="btn btn-outline">
