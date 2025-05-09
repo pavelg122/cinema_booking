@@ -6,6 +6,7 @@ type User = Database['public']['Tables']['users']['Row'];
 export const auth = {
   async login(email: string, password: string) {
     try {
+      // First get the user to check if they exist
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
@@ -15,11 +16,15 @@ export const auth = {
       if (error) throw error;
       if (!user) throw new Error('User not found');
 
-      // In a real app, we would verify the password hash here
-      // For demo purposes, we'll do a simple comparison
-      if (user.password_hash !== password) {
-        throw new Error('Invalid password');
-      }
+      // Verify password using database function
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_password', {
+          password,
+          password_hash: user.password_hash
+        });
+
+      if (verifyError) throw verifyError;
+      if (!isValid) throw new Error('Invalid password');
 
       return user;
     } catch (error) {
@@ -41,13 +46,19 @@ export const auth = {
         throw new Error('User already exists');
       }
 
-      // Create new user
+      // Hash password using database function
+      const { data: hashedPassword, error: hashError } = await supabase
+        .rpc('hash_password', { password });
+
+      if (hashError) throw hashError;
+
+      // Create new user with hashed password
       const { data: user, error } = await supabase
         .from('users')
         .insert({
           name,
           email,
-          password_hash: password, // In a real app, this would be hashed
+          password_hash: hashedPassword,
           role: 'user'
         })
         .select()
