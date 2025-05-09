@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-secondary-900 text-secondary-100 font-sans;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md transition-all duration-200 font-medium;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary-700 text-white hover:bg-secondary-800 active:bg-secondary-900;
+  }
+  
+  .btn-accent {
+    @apply bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700;
+  }
+  
+  .btn-outline {
+    @apply border border-secondary-600 text-secondary-300 hover:bg-secondary-800 hover:text-white;
+  }
+  
+  .input {
+    @apply bg-secondary-800 border border-secondary-700 rounded-md px-3 py-2 
+           text-secondary-100 focus:outline-none focus:ring-2 focus:ring-primary-500 
+           focus:border-transparent transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-secondary-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300;
+  }
+  
+  .section {
+    @apply py-12 px-4 md:px-8 max-w-7xl mx-auto;
+  }
+}
+
+/* Seat selection styles */
+.seat {
+  @apply w-8 h-8 m-1 flex items-center justify-center rounded-md cursor-pointer transition-all duration-200 text-xs font-medium;
+}
+
+.seat-available {
+  @apply bg-secondary-700 hover:bg-primary-600 text-white;
+}
+
+.seat-selected {
+  @apply bg-primary-600 text-white;
+}
+
+.seat-occupied {
+  @apply bg-secondary-600 text-secondary-400 cursor-not-allowed;
+}
+
+.seat-vip {
+  @apply bg-accent-500 hover:bg-accent-600 text-white;
+}
+
+/* Movie card styles */
+.movie-card {
+  @apply relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300;
+}
+
+.movie-card-overlay {
+  @apply absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60;
+}
+
+.movie-card-content {
+  @apply absolute bottom-0 left-0 w-full p-4 text-white;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
