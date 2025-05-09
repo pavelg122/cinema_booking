@@ -10,6 +10,7 @@ const HomePage: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [popularMovies, setPopularMovies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -23,6 +24,7 @@ const HomePage: React.FC = () => {
         setPopularMovies(popularMoviesData);
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError('Failed to load movies. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -35,6 +37,22 @@ const HomePage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
