@@ -63,9 +63,20 @@ export const auth = {
 
   async getCurrentUser() {
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!session?.user?.id) {
+        return null; // No user logged in
+      }
+
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
+        .eq('id', session.user.id)
         .single();
 
       if (error) throw error;
