@@ -1,14 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Filter, Calendar, Clock } from 'lucide-react';
-import { movies } from '../data/mockData';
-import { Movie } from '../types/movie';
+import { api } from '../lib/api';
+import type { Database } from '../types/database.types';
+
+type Movie = Database['public']['Tables']['movies']['Row'];
 
 const MoviesPage: React.FC = () => {
-  const [filteredMovies, setFilteredMovies] = useState<Movie[]>(movies);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch movies on component mount
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        const data = await api.getMovies();
+        setMovies(data);
+        setFilteredMovies(data);
+      } catch (err) {
+        console.error('Error fetching movies:', err);
+        setError('Failed to load movies. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMovies();
+  }, []);
 
   // Get all unique genres
   const allGenres = Array.from(
@@ -23,7 +46,7 @@ const MoviesPage: React.FC = () => {
       result = result.filter(movie => 
         movie.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         movie.director.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        movie.cast.some(actor => actor.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        movie.cast_members.some(actor => actor.toLowerCase().includes(searchTerm.toLowerCase())) ||
         movie.genre.some(genre => genre.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
@@ -36,11 +59,35 @@ const MoviesPage: React.FC = () => {
     }
     
     setFilteredMovies(result);
-  }, [searchTerm, selectedGenre]);
+  }, [searchTerm, selectedGenre, movies]);
 
   const toggleFilters = () => {
     setIsFilterOpen(!isFilterOpen);
   };
+
+  if (loading) {
+    return (
+      <div className="section flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="section flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-primary"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section">
@@ -103,13 +150,13 @@ const MoviesPage: React.FC = () => {
             <Link to={`/movies/${movie.id}`} key={movie.id} className="card group">
               <div className="relative aspect-[2/3] overflow-hidden">
                 <img 
-                  src={movie.posterUrl} 
+                  src={movie.poster_url} 
                   alt={movie.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute top-2 right-2 bg-secondary-900/80 text-white px-2 py-1 rounded-md text-sm flex items-center">
                   <Star className="h-4 w-4 text-accent-500 mr-1" />
-                  {movie.imdbRating}
+                  {movie.imdb_rating}
                 </div>
               </div>
               <div className="p-4">
@@ -123,7 +170,7 @@ const MoviesPage: React.FC = () => {
                 </div>
                 <div className="flex items-center text-secondary-400 text-sm">
                   <Calendar className="h-4 w-4 mr-1" />
-                  <span>{new Date(movie.releaseDate).getFullYear()}</span>
+                  <span>{new Date(movie.release_date).getFullYear()}</span>
                   <span className="mx-2">•</span>
                   <Clock className="h-4 w-4 mr-1" />
                   <span>{movie.duration} min</span>
