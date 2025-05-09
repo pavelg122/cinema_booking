@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
+import { auth } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -24,47 +25,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      setIsAdmin(parsedUser.role === 'admin');
-    }
-    setLoading(false);
+    const initAuth = async () => {
+      try {
+        const currentUser = await auth.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAdmin(currentUser.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
-      // In a real app, this would be an API call
-      // Simulating an API response for development
-      if (email === 'admin@example.com' && password === 'admin123') {
-        const adminUser = {
-          id: 'admin-id',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'admin',
-        };
-        setUser(adminUser);
-        setIsAdmin(true);
-        localStorage.setItem('user', JSON.stringify(adminUser));
-      } else if (email === 'user@example.com' && password === 'user123') {
-        const regularUser = {
-          id: 'user-id',
-          name: 'Regular User',
-          email: 'user@example.com',
-          role: 'user',
-        };
-        setUser(regularUser);
-        setIsAdmin(false);
-        localStorage.setItem('user', JSON.stringify(regularUser));
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      const user = await auth.login(email, password);
+      setUser(user);
+      setIsAdmin(user.role === 'admin');
     } catch (err) {
       setError((err as Error).message);
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -74,26 +61,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      // In a real app, this would be an API call
-      // Simulating user registration
-      const newUser = {
-        id: `user-${Date.now()}`,
-        name,
-        email,
-        role: 'user',
-      };
-      setUser(newUser);
-      setIsAdmin(false);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      const user = await auth.register(name, email, password);
+      setUser(user);
+      setIsAdmin(user.role === 'admin');
     } catch (err) {
       setError((err as Error).message);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
     setUser(null);
     setIsAdmin(false);
   };
