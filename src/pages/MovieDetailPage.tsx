@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, Clock, Calendar, Film, CalendarDays } from 'lucide-react';
-import { movies, screenings } from '../data/mockData';
+import { api } from '../lib/api';
 import { format, parseISO } from 'date-fns';
+import type { Database } from '../types/database.types';
+
+type Movie = Database['public']['Tables']['movies']['Row'];
+type Screening = Database['public']['Tables']['screenings']['Row'] & {
+  halls: Database['public']['Tables']['halls']['Row']
+};
 
 const MovieDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,14 +16,48 @@ const MovieDetailPage: React.FC = () => {
     format(new Date(), 'yyyy-MM-dd')
   );
   
-  // Find movie by ID
-  const movie = movies.find(m => m.id === id);
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [screenings, setScreenings] = useState<Screening[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // If movie not found
-  if (!movie) {
+  useEffect(() => {
+    const fetchMovieData = async () => {
+      try {
+        if (!id) return;
+        
+        const [movieData, screeningsData] = await Promise.all([
+          api.getMovie(id),
+          api.getScreenings(id)
+        ]);
+        
+        setMovie(movieData);
+        setScreenings(screeningsData);
+      } catch (err) {
+        console.error('Error fetching movie data:', err);
+        setError('Failed to load movie details. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMovieData();
+  }, [id]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+  
+  if (error || !movie) {
     return (
       <div className="section flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-semibold text-white mb-4">Movie not found</h2>
+        <h2 className="text-2xl font-semibold text-white mb-4">
+          {error || 'Movie not found'}
+        </h2>
         <Link to="/movies" className="btn btn-primary">
           Return to Movies
         </Link>
@@ -28,24 +68,23 @@ const MovieDetailPage: React.FC = () => {
   // Get unique dates for this movie's screenings
   const uniqueDates = Array.from(
     new Set(
-      screenings
-        .filter(s => s.movieId === id)
-        .map(s => s.date)
+      screenings.map(s => s.screening_date)
     )
   ).sort();
   
   // Get screenings for selected date
   const dateScreenings = screenings.filter(
-    s => s.movieId === id && s.date === selectedDate
-  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    s => s.screening_date === selectedDate
+  ).sort((a, b) => a.start_time.localeCompare(b.start_time));
   
   // Group screenings by hall
   const screeningsByHall: Record<string, typeof screenings> = {};
   dateScreenings.forEach(screening => {
-    if (!screeningsByHall[screening.hall]) {
-      screeningsByHall[screening.hall] = [];
+    const hallName = screening.halls.name;
+    if (!screeningsByHall[hallName]) {
+      screeningsByHall[hallName] = [];
     }
-    screeningsByHall[screening.hall].push(screening);
+    screeningsByHall[hallName].push(screening);
   });
 
   return (
@@ -54,7 +93,7 @@ const MovieDetailPage: React.FC = () => {
       <div className="relative h-[50vh] bg-secondary-950">
         <div className="absolute inset-0 z-0">
           <img 
-            src={movie.bannerUrl || movie.posterUrl} 
+            src={movie.banner_url || movie.poster_url} 
             alt={movie.title} 
             className="w-full h-full object-cover opacity-30"
           />
@@ -68,7 +107,7 @@ const MovieDetailPage: React.FC = () => {
           <div className="lg:col-span-1">
             <div className="rounded-lg overflow-hidden shadow-lg border-4 border-secondary-800">
               <img 
-                src={movie.posterUrl} 
+                src={movie.poster_url} 
                 alt={movie.title} 
                 className="w-full h-auto"
               />
@@ -82,7 +121,7 @@ const MovieDetailPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 mb-6">
               <div className="flex items-center bg-secondary-800 px-3 py-1 rounded-md">
                 <Star className="h-5 w-5 text-accent-500 mr-1" />
-                <span className="text-white">{movie.imdbRating}/10</span>
+                <span className="text-white">{movie.imdb_rating}/10</span>
               </div>
               
               <div className="flex items-center text-secondary-300">
@@ -92,7 +131,7 @@ const MovieDetailPage: React.FC = () => {
               
               <div className="flex items-center text-secondary-300">
                 <Calendar className="h-5 w-5 mr-1" />
-                <span>{format(parseISO(movie.releaseDate), 'MMM dd, yyyy')}</span>
+                <span>{format(parseISO(movie.release_date), 'MMM dd, yyyy')}</span>
               </div>
               
               <span className="px-2 py-1 bg-secondary-800 rounded-md text-sm text-white">{movie.rating}</span>
@@ -122,19 +161,19 @@ const MovieDetailPage: React.FC = () => {
               <div>
                 <h3 className="text-xl font-semibold text-white mb-2">Cast</h3>
                 <div className="flex flex-wrap gap-2">
-                  {movie.cast.map((actor, index) => (
+                  {movie.cast_members.map((actor, index) => (
                     <span key={index} className="text-secondary-300">
-                      {actor}{index < movie.cast.length - 1 ? ', ' : ''}
+                      {actor}{index < movie.cast_members.length - 1 ? ', ' : ''}
                     </span>
                   ))}
                 </div>
               </div>
             </div>
             
-            {movie.trailerUrl && (
+            {movie.trailer_url && (
               <div className="mb-6">
                 <a
-                  href={movie.trailerUrl}
+                  href={movie.trailer_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-accent flex items-center justify-center w-full sm:w-auto"
@@ -190,9 +229,9 @@ const MovieDetailPage: React.FC = () => {
                         to={`/seats/${screening.id}`}
                         className="bg-secondary-700 hover:bg-primary-700 text-white py-3 px-4 rounded-md transition-colors text-center"
                       >
-                        <div className="font-medium">{screening.startTime}</div>
+                        <div className="font-medium">{screening.start_time}</div>
                         <div className="text-xs text-secondary-300">
-                          {screening.seatsAvailable} seats left
+                          Standard
                         </div>
                       </Link>
                     ))}
