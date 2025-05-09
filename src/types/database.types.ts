@@ -9,6 +9,35 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      users: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          password_hash: string
+          role: 'user' | 'admin'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          password_hash: string
+          role?: 'user' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          password_hash?: string
+          role?: 'user' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+      }
       movies: {
         Row: {
           id: string
@@ -251,10 +280,13 @@ export interface Database {
       }
     }
     Functions: {
-      [_ in never]: never
+      hash_password: {
+        Args: { password: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: 'user' | 'admin'
     }
   }
 }
