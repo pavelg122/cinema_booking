@@ -16,21 +16,25 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Fetching data for homepage...');
+        console.log('Starting data fetch for homepage...');
         const [moviesData, popularMoviesData] = await Promise.all([
           api.getMovies(),
           api.getPopularMovies()
         ]);
         
-        console.log('Movies data:', moviesData);
-        console.log('Popular movies data:', popularMoviesData);
+        console.log('Raw movies data:', moviesData);
+        console.log('Raw popular movies data:', popularMoviesData);
 
-        if (!moviesData) {
-          throw new Error('No movies data received');
+        if (!moviesData?.length) {
+          console.warn('No movies data received');
+          setMovies([]);
+        } else {
+          setMovies(moviesData);
         }
 
-        setMovies(moviesData);
-        setPopularMovies(popularMoviesData || []);
+        if (popularMoviesData?.length) {
+          setPopularMovies(popularMoviesData);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to load movies. Please try again later.');
