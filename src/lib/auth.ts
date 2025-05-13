@@ -7,13 +7,18 @@ export const auth = {
   async login(email: string, password: string) {
     try {
       // First get the user to check if they exist
-      const { data: user, error } = await supabase
+      const { data: user, error: userError } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          roles (
+            name
+          )
+        `)
         .eq('email', email)
         .single();
 
-      if (error) throw error;
+      if (userError) throw userError;
       if (!user) throw new Error('User not found');
 
       // Verify password using database function
@@ -26,7 +31,10 @@ export const auth = {
       if (verifyError) throw verifyError;
       if (!isValid) throw new Error('Invalid password');
 
-      return user;
+      return {
+        ...user,
+        role: user.roles?.name || 'user'
+      };
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -61,11 +69,20 @@ export const auth = {
           password_hash: hashedPassword,
           role: 'user'
         })
-        .select()
+        .select(`
+          *,
+          roles (
+            name
+          )
+        `)
         .single();
 
       if (error) throw error;
-      return user;
+
+      return {
+        ...user,
+        role: user.roles?.name || 'user'
+      };
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -86,12 +103,21 @@ export const auth = {
 
       const { data: user, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          roles (
+            name
+          )
+        `)
         .eq('id', session.user.id)
         .single();
 
       if (error) throw error;
-      return user;
+
+      return {
+        ...user,
+        role: user.roles?.name || 'user'
+      };
     } catch (error) {
       console.error('Get current user error:', error);
       return null;

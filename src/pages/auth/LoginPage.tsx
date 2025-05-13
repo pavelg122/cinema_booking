@@ -29,23 +29,7 @@ const LoginPage: React.FC = () => {
       navigate(from, { replace: true });
     } catch (err) {
       console.error('Login error:', err);
-    }
-  };
-  
-  // Demo credentials info
-  const demoCredentials = [
-    { type: 'User', email: 'user@example.com', password: 'user123' },
-    { type: 'Admin', email: 'admin@example.com', password: 'admin123' },
-  ];
-  
-  const loginWithDemo = async (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    try {
-      await login(demoEmail, demoPassword);
-      navigate(from, { replace: true });
-    } catch (err) {
-      console.error('Demo login error:', err);
+      setFormError((err as Error).message);
     }
   };
 
@@ -156,32 +140,6 @@ const LoginPage: React.FC = () => {
               </button>
             </div>
           </form>
-          
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-secondary-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-secondary-800 text-secondary-400">
-                  Or use demo credentials
-                </span>
-              </div>
-            </div>
-            
-            <div className="mt-6 space-y-3">
-              {demoCredentials.map((cred) => (
-                <button
-                  key={cred.type}
-                  type="button"
-                  onClick={() => loginWithDemo(cred.email, cred.password)}
-                  className="btn btn-outline w-full"
-                >
-                  Login as {cred.type}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
