@@ -26,12 +26,18 @@ const RegisterPage: React.FC = () => {
       setFormError('Passwords do not match');
       return;
     }
+
+    if (password.length < 6) {
+      setFormError('Password must be at least 6 characters long');
+      return;
+    }
     
     try {
       await register(name, email, password);
       navigate('/');
     } catch (err) {
       console.error('Registration error:', err);
+      setFormError((err as Error).message);
     }
   };
 
@@ -121,6 +127,9 @@ const RegisterPage: React.FC = () => {
                   placeholder="••••••••"
                 />
               </div>
+              <p className="mt-1 text-sm text-secondary-400">
+                Must be at least 6 characters long
+              </p>
             </div>
             
             <div>
