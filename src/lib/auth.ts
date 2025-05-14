@@ -44,12 +44,13 @@ export const auth = {
   async register(name: string, email: string, password: string) {
     try {
       // Check if user already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
         .eq('email', email)
-        .single();
+        .maybeSingle();
 
+      if (checkError) throw checkError;
       if (existingUser) {
         throw new Error('User already exists');
       }
@@ -61,7 +62,7 @@ export const auth = {
       if (hashError) throw hashError;
 
       // Create new user with hashed password
-      const { data: user, error } = await supabase
+      const { data: user, error: insertError } = await supabase
         .from('users')
         .insert({
           name,
@@ -77,7 +78,8 @@ export const auth = {
         `)
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+      if (!user) throw new Error('Failed to create user');
 
       return {
         ...user,
