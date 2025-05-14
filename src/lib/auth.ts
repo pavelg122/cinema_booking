@@ -60,7 +60,7 @@ export const auth = {
         .rpc('hash_password', { password });
 
       if (hashError) throw hashError;
-
+       console.log({ name, email, password_hash: hashedPassword, role: 'user' });
       // Create new user with hashed password
       const { data: user, error: insertError } = await supabase
         .from('users')
