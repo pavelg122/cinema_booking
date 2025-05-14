@@ -1,27 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { screenings, movies, getSeatsForScreening } from '../data/mockData';
-import { SeatRow } from '../types/screening';
-import { Seat } from '../types/booking';
 import { ChevronRight, Info } from 'lucide-react';
+import { api } from '../lib/api';
+import type { Database } from '../types/database.types';
+import type { Seat } from '../types/booking';
+
+type Screening = Database['public']['Tables']['screenings']['Row'] & {
+  movies: Database['public']['Tables']['movies']['Row'];
+  halls: Database['public']['Tables']['halls']['Row'];
+};
+
+interface SeatType {
+  id: string;
+  row: string;
+  number: number;
+  type: 'regular' | 'vip';
+  status: 'available' | 'selected' | 'occupied';
+  price: number;
+}
+
+interface SeatRow {
+  row: string;
+  seats: SeatType[];
+}
 
 const SeatSelectionPage: React.FC = () => {
   const { screeningId } = useParams<{ screeningId: string }>();
   const navigate = useNavigate();
   
+  const [screening, setScreening] = useState<Screening | null>(null);
   const [seatMap, setSeatMap] = useState<SeatRow[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
-  
-  // Find screening and movie
-  const screening = screenings.find(s => s.id === screeningId);
-  const movie = screening ? movies.find(m => m.id === screening.movieId) : null;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    if (screeningId) {
-      const seats = getSeatsForScreening(screeningId);
-      setSeatMap(seats);
-    }
+    const fetchData = async () => {
+      try {
+        if (!screeningId) return;
+
+        // Fetch screening details and seats in parallel
+        const [screeningData, seatsData] = await Promise.all([
+          api.getScreening(screeningId),
+          api.getSeatsForScreening(screeningId)
+        ]);
+
+        setScreening(screeningData);
+        setSeatMap(seatsData);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load screening details. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [screeningId]);
   
   // Handle seat selection
@@ -92,17 +127,27 @@ const SeatSelectionPage: React.FC = () => {
     navigate(`/checkout/${bookingId}`, {
       state: {
         screening,
-        movie,
+        movie: screening?.movies,
         selectedSeats,
         totalPrice,
       },
     });
   };
+
+  if (loading) {
+    return (
+      <div className="section flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
   
-  if (!screening || !movie) {
+  if (error || !screening) {
     return (
       <div className="section flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-semibold text-white mb-4">Screening not found</h2>
+        <h2 className="text-2xl font-semibold text-white mb-4">
+          {error || 'Screening not found'}
+        </h2>
         <button
           onClick={() => navigate(-1)}
           className="btn btn-primary"
@@ -119,18 +164,18 @@ const SeatSelectionPage: React.FC = () => {
         <div className="flex items-center text-sm text-secondary-400 mb-2">
           <span>Movies</span>
           <ChevronRight className="h-4 w-4 mx-1" />
-          <span>{movie.title}</span>
+          <span>{screening.movies.title}</span>
           <ChevronRight className="h-4 w-4 mx-1" />
           <span>Select Seats</span>
         </div>
         
-        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{movie.title}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{screening.movies.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-secondary-300">
-          <span>{screening.date}</span>
+          <span>{screening.screening_date}</span>
           <span>•</span>
-          <span>{screening.startTime} - {screening.endTime}</span>
+          <span>{screening.start_time} - {screening.end_time}</span>
           <span>•</span>
-          <span>{screening.hall}</span>
+          <span>{screening.halls.name}</span>
         </div>
       </div>
       
@@ -203,19 +248,19 @@ const SeatSelectionPage: React.FC = () => {
             <div className="mb-6">
               <div className="flex justify-between mb-2">
                 <span className="text-secondary-300">Movie:</span>
-                <span className="text-white font-medium">{movie.title}</span>
+                <span className="text-white font-medium">{screening.movies.title}</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-secondary-300">Date:</span>
-                <span className="text-white">{screening.date}</span>
+                <span className="text-white">{screening.screening_date}</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-secondary-300">Time:</span>
-                <span className="text-white">{screening.startTime} - {screening.endTime}</span>
+                <span className="text-white">{screening.start_time} - {screening.end_time}</span>
               </div>
               <div className="flex justify-between mb-2">
                 <span className="text-secondary-300">Cinema:</span>
-                <span className="text-white">{screening.hall}</span>
+                <span className="text-white">{screening.halls.name}</span>
               </div>
             </div>
             
