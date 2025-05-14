@@ -166,15 +166,42 @@ export const api = {
   },
 
   // Bookings
-  async createBooking(booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) {
-    const { data, error } = await supabase
+  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number) {
+    // Start a transaction
+    const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .insert(booking)
+      .insert({
+        user_id: userId,
+        screening_id: screeningId,
+        total_price: totalPrice,
+        status: 'pending',
+        booking_date: new Date().toISOString()
+      })
       .select()
       .single();
-    
-    if (error) throw error;
-    return data;
+
+    if (bookingError) throw bookingError;
+
+    // Insert booked seats
+    const bookedSeats = seatIds.map(seatId => ({
+      booking_id: booking.id,
+      seat_id: seatId
+    }));
+
+    const { error: seatsError } = await supabase
+      .from('booked_seats')
+      .insert(bookedSeats);
+
+    if (seatsError) {
+      // If there's an error inserting seats, delete the booking
+      await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', booking.id);
+      throw seatsError;
+    }
+
+    return booking;
   },
 
   async getUserBookings(userId: string) {

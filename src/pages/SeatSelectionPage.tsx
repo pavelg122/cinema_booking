@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
 
@@ -27,6 +28,7 @@ interface SeatRow {
 const SeatSelectionPage: React.FC = () => {
   const { screeningId } = useParams<{ screeningId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [screening, setScreening] = useState<Screening | null>(null);
   const [seatMap, setSeatMap] = useState<SeatRow[]>([]);
@@ -34,6 +36,7 @@ const SeatSelectionPage: React.FC = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -60,7 +63,7 @@ const SeatSelectionPage: React.FC = () => {
   }, [screeningId]);
   
   // Handle seat selection
-  const handleSeatClick = (row: string, number: number, status: string, price: number) => {
+  const handleSeatClick = (row: string, number: number, status: string, price: number, seatId: string) => {
     if (status === 'occupied') return;
     
     // Check if seat is already selected
@@ -92,7 +95,7 @@ const SeatSelectionPage: React.FC = () => {
     } else {
       // Add seat to selection
       const newSeat: Seat = {
-        id: `${row}${number}`,
+        id: seatId,
         row,
         number,
       };
@@ -117,23 +120,36 @@ const SeatSelectionPage: React.FC = () => {
   };
   
   // Handle proceed to checkout
-  const handleProceedToCheckout = () => {
-    if (selectedSeats.length === 0) return;
+  const handleProceedToCheckout = async () => {
+    if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) return;
     
-    // Create a booking ID (would normally be done on the server)
-    const bookingId = `booking-${Date.now()}`;
+    setIsProcessing(true);
     
-    // Navigate to checkout
-    navigate(`/checkout/${bookingId}`, {
-      state: {
-        screening,
-        movie: screening?.movies,
-        selectedSeats,
-        totalPrice,
-      },
-    });
-  };
+    try {
+      // Create booking in database
+      const booking = await api.createBooking(
+        user.id,
+        screeningId,
+        selectedSeats.map(seat => seat.id),
+        totalPrice
+      );
 
+      // Navigate to checkout
+      navigate(`/checkout/${booking.id}`, {
+        state: {
+          screening,
+          movie: screening?.movies,
+          selectedSeats,
+          totalPrice,
+        },
+      });
+    } catch (err) {
+      console.error('Error creating booking:', err);
+      setError('Failed to create booking. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="section flex items-center justify-center min-h-[50vh]">
@@ -227,7 +243,7 @@ const SeatSelectionPage: React.FC = () => {
                           ? 'seat-selected'
                           : 'seat-occupied'
                       }`}
-                      onClick={() => handleSeatClick(seat.row, seat.number, seat.status, seat.price)}
+                      onClick={() => handleSeatClick(seat.row, seat.number, seat.status, seat.price, seat.id)}
                       disabled={seat.status === 'occupied'}
                     >
                       {seat.number}
@@ -286,12 +302,24 @@ const SeatSelectionPage: React.FC = () => {
             
             <button
               onClick={handleProceedToCheckout}
-              disabled={selectedSeats.length === 0}
+              disabled={selectedSeats.length === 0 || isProcessing}
               className={`w-full btn ${
-                selectedSeats.length > 0 ? 'btn-primary' : 'btn-secondary opacity-50 cursor-not-allowed'
+                selectedSeats.length > 0 && !isProcessing
+                  ? 'btn-primary'
+                  : 'btn-secondary opacity-50 cursor-not-allowed'
               }`}
             >
-              Proceed to Checkout
+              {isProcessing ? (
+                <div className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </div>
+              ) : (
+                'Proceed to Checkout'
+              )}
             </button>
             
             <div className="mt-4 flex items-start text-xs text-secondary-400">
