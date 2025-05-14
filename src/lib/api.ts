@@ -107,6 +107,7 @@ export const api = {
 
   // Seats
   async getSeatsForScreening(screeningId: string) {
+    // First get the screening to get the hall_id
     const { data: screening, error: screeningError } = await supabase
       .from('screenings')
       .select('hall_id')
@@ -115,6 +116,7 @@ export const api = {
     
     if (screeningError) throw screeningError;
 
+    // Get all seat rows and seats for the hall
     const { data: seatRows, error: seatRowsError } = await supabase
       .from('seat_rows')
       .select(`
@@ -126,18 +128,31 @@ export const api = {
     
     if (seatRowsError) throw seatRowsError;
 
-    // Get booked seats for this screening
-    const { data: bookedSeats, error: bookedSeatsError } = await supabase
-      .from('booked_seats')
-      .select('seat_id')
-      .eq('screening_id', screeningId);
-    
-    if (bookedSeatsError) throw bookedSeatsError;
+    // Get all bookings for this screening
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('screening_id', screeningId)
+      .in('status', ['confirmed', 'pending']);
 
-    const bookedSeatIds = new Set(bookedSeats.map(bs => bs.seat_id));
+    if (bookingsError) throw bookingsError;
+
+    // If there are bookings, get all booked seats
+    let bookedSeatIds: Set<string> = new Set();
+    
+    if (bookings && bookings.length > 0) {
+      const { data: bookedSeats, error: bookedSeatsError } = await supabase
+        .from('booked_seats')
+        .select('seat_id')
+        .in('booking_id', bookings.map(b => b.id));
+      
+      if (bookedSeatsError) throw bookedSeatsError;
+      
+      bookedSeatIds = new Set(bookedSeats?.map(bs => bs.seat_id) || []);
+    }
 
     // Transform the data into the expected format
-    return seatRows.map(row => ({
+    return seatRows?.map(row => ({
       row: row.row_letter,
       seats: row.seats.map(seat => ({
         id: seat.id,
@@ -147,7 +162,7 @@ export const api = {
         status: bookedSeatIds.has(seat.id) ? 'occupied' : 'available',
         price: seat.price
       }))
-    }));
+    })) || [];
   },
 
   // Bookings
