@@ -13,6 +13,6 @@ export interface Booking {
   totalPrice: number;
   bookingDate: string;
   status: 'pending' | 'confirmed' | 'cancelled';
-  paymentMethod?: string;
+  paymentMethod: string;
   paymentId?: string;
 }

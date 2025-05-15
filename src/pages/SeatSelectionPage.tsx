@@ -126,12 +126,13 @@ const SeatSelectionPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      // Create booking in database
+      // Create booking in database with default payment method
       const booking = await api.createBooking(
         user.id,
         screeningId,
         selectedSeats.map(seat => seat.id),
-        totalPrice
+        totalPrice,
+        'credit_card' // Set default payment method
       );
 
       // Navigate to checkout

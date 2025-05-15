@@ -166,7 +166,7 @@ export const api = {
   },
 
   // Bookings
-  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number) {
+  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number, paymentMethod: string) {
     // Start a transaction
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -175,7 +175,8 @@ export const api = {
         screening_id: screeningId,
         total_price: totalPrice,
         status: 'pending',
-        booking_date: new Date().toISOString()
+        booking_date: new Date().toISOString(),
+        payment_method: paymentMethod
       })
       .select()
       .single();
