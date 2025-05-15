@@ -117,25 +117,40 @@ const SeatSelectionPage: React.FC = () => {
     if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) return;
     
     setIsProcessing(true);
+    setError(null);
     
     try {
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Failed to load Stripe');
 
-      const response = await fetch('/api/create-payment-intent', {
+      // Ensure totalPrice is a valid number
+      if (isNaN(totalPrice) || totalPrice <= 0) {
+        throw new Error('Invalid total price');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ amount: totalPrice }),
       });
 
-      const { clientSecret } = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to process payment' }));
+        throw new Error(errorData.error || 'Failed to process payment');
+      }
 
-      const result = await stripe.confirmCardPayment(clientSecret);
+      const data = await response.json();
+      if (!data.clientSecret) {
+        throw new Error('Invalid response from payment server');
+      }
+
+      const result = await stripe.confirmCardPayment(data.clientSecret);
 
       if (result.error) {
-        throw new Error(result.error.message);
+        throw new Error(result.error.message || 'Payment failed');
       }
 
       if (result.paymentIntent.status === 'succeeded') {
@@ -165,7 +180,8 @@ const SeatSelectionPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error processing payment:', err);
-      setError('Failed to process payment. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to process payment. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -315,6 +331,12 @@ const SeatSelectionPage: React.FC = () => {
                 <span className="text-primary-500">${totalPrice.toFixed(2)}</span>
               </div>
             </div>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
+                {error}
+              </div>
+            )}
             
             <button
               onClick={handleProceedToCheckout}

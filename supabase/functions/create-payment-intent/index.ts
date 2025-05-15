@@ -17,6 +17,11 @@ Deno.serve(async (req) => {
   try {
     const { amount } = await req.json();
 
+    // Validate amount
+    if (!amount || isNaN(amount) || amount <= 0) {
+      throw new Error('Invalid amount provided');
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: 'usd',
@@ -35,8 +40,12 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Payment intent creation error:', error);
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Failed to create payment intent'
+      }),
       {
         status: 400,
         headers: {
