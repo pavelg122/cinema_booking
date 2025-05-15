@@ -16,7 +16,7 @@ interface SeatType {
   row: string;
   number: number;
   type: 'regular' | 'vip';
-  status: 'available' | 'selected' | 'occupied';
+  status: 'available' | 'selected' | 'occupied' | 'reserved';
   price: number;
 }
 
@@ -24,6 +24,9 @@ interface SeatRow {
   row: string;
   seats: SeatType[];
 }
+
+const MAX_SEATS = 10;
+const SEAT_HOLD_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 const SeatSelectionPage: React.FC = () => {
   const { screeningId } = useParams<{ screeningId: string }>();
@@ -37,6 +40,7 @@ const SeatSelectionPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [reservationId, setReservationId] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -59,54 +63,101 @@ const SeatSelectionPage: React.FC = () => {
     };
 
     fetchData();
+
+    // Cleanup reservation on unmount
+    return () => {
+      if (reservationId) {
+        api.cancelSeatReservation(reservationId).catch(console.error);
+      }
+    };
   }, [screeningId]);
+
+  // Update seat reservation periodically
+  useEffect(() => {
+    if (!reservationId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        await api.updateSeatReservation(reservationId);
+      } catch (err) {
+        console.error('Error updating seat reservation:', err);
+        setError('Your seat reservation has expired. Please try again.');
+        setSelectedSeats([]);
+        setTotalPrice(0);
+      }
+    }, SEAT_HOLD_TIME / 2);
+
+    return () => clearInterval(interval);
+  }, [reservationId]);
   
-  const handleSeatClick = (row: string, number: number, status: string, price: number, seatId: string) => {
-    if (status === 'occupied') return;
+  const handleSeatClick = async (row: string, number: number, status: string, price: number, seatId: string) => {
+    if (status === 'occupied' || status === 'reserved') return;
     
     const existingIndex = selectedSeats.findIndex(
       seat => seat.row === row && seat.number === number
     );
     
-    if (existingIndex > -1) {
-      const updatedSeats = [...selectedSeats];
-      updatedSeats.splice(existingIndex, 1);
-      setSelectedSeats(updatedSeats);
-      
-      const updatedSeatMap = [...seatMap];
-      const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
-      if (rowIndex > -1) {
-        const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
-          s => s.row === row && s.number === number
-        );
-        if (seatIndex > -1) {
-          updatedSeatMap[rowIndex].seats[seatIndex].status = 'available';
+    try {
+      if (existingIndex > -1) {
+        // Deselect seat
+        const updatedSeats = [...selectedSeats];
+        updatedSeats.splice(existingIndex, 1);
+        setSelectedSeats(updatedSeats);
+        
+        const updatedSeatMap = [...seatMap];
+        const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
+        if (rowIndex > -1) {
+          const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
+            s => s.row === row && s.number === number
+          );
+          if (seatIndex > -1) {
+            updatedSeatMap[rowIndex].seats[seatIndex].status = 'available';
+          }
         }
-      }
-      setSeatMap(updatedSeatMap);
-      
-      setTotalPrice(prevPrice => prevPrice - price);
-    } else {
-      const newSeat: Seat = {
-        id: seatId,
-        row,
-        number,
-      };
-      setSelectedSeats([...selectedSeats, newSeat]);
-      
-      const updatedSeatMap = [...seatMap];
-      const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
-      if (rowIndex > -1) {
-        const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
-          s => s.row === row && s.number === number
-        );
-        if (seatIndex > -1) {
-          updatedSeatMap[rowIndex].seats[seatIndex].status = 'selected';
+        setSeatMap(updatedSeatMap);
+        setTotalPrice(prevPrice => prevPrice - price);
+
+        // Update reservation if needed
+        if (reservationId && selectedSeats.length === 1) {
+          await api.cancelSeatReservation(reservationId);
+          setReservationId(null);
         }
+      } else {
+        // Check seat limit
+        if (selectedSeats.length >= MAX_SEATS) {
+          setError(`You can select up to ${MAX_SEATS} seats per booking`);
+          return;
+        }
+
+        // Select seat
+        const newSeat: Seat = {
+          id: seatId,
+          row,
+          number,
+        };
+        
+        // Create or update reservation
+        const newReservationId = await api.reserveSeats(screeningId, [...selectedSeats, newSeat]);
+        setReservationId(newReservationId);
+
+        setSelectedSeats([...selectedSeats, newSeat]);
+        
+        const updatedSeatMap = [...seatMap];
+        const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
+        if (rowIndex > -1) {
+          const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
+            s => s.row === row && s.number === number
+          );
+          if (seatIndex > -1) {
+            updatedSeatMap[rowIndex].seats[seatIndex].status = 'selected';
+          }
+        }
+        setSeatMap(updatedSeatMap);
+        setTotalPrice(prevPrice => prevPrice + price);
       }
-      setSeatMap(updatedSeatMap);
-      
-      setTotalPrice(prevPrice => prevPrice + price);
+    } catch (err) {
+      console.error('Error handling seat selection:', err);
+      setError('Failed to reserve seat. Please try again.');
     }
   };
   
@@ -125,7 +176,12 @@ const SeatSelectionPage: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ amount: totalPrice }),
+        body: JSON.stringify({ 
+          amount: totalPrice,
+          screeningId,
+          seatIds: selectedSeats.map(seat => seat.id),
+          reservationId
+        }),
       });
 
       if (!response.ok) {
@@ -142,6 +198,7 @@ const SeatSelectionPage: React.FC = () => {
           totalPrice,
           clientSecret,
           screeningId,
+          reservationId
         },
       });
     } catch (err) {
