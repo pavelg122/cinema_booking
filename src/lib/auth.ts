@@ -6,7 +6,16 @@ type User = Database['public']['Tables']['users']['Row'];
 export const auth = {
   async login(email: string, password: string) {
     try {
-      // First get the user to check if they exist
+      // First authenticate with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Authentication failed');
+
+      // Get the user details
       const { data: user, error: userError } = await supabase
         .from('users')
         .select(`
@@ -15,21 +24,11 @@ export const auth = {
             name
           )
         `)
-        .eq('email', email)
+        .eq('id', authData.user.id)
         .single();
 
       if (userError) throw userError;
       if (!user) throw new Error('User not found');
-
-      // Verify password using database function
-      const { data: isValid, error: verifyError } = await supabase
-        .rpc('verify_password', {
-          password,
-          password_hash: user.password_hash
-        });
-
-      if (verifyError) throw verifyError;
-      if (!isValid) throw new Error('Invalid password');
 
       return {
         ...user,
@@ -43,28 +42,31 @@ export const auth = {
 
   async register(name: string, email: string, password: string) {
     try {
-      // Check if user already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle();
+      // First sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name
+          }
+        }
+      });
 
-      if (checkError) throw checkError;
-      if (existingUser) {
-        throw new Error('User already exists');
-      }
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Registration failed');
 
       // Hash password using database function
       const { data: hashedPassword, error: hashError } = await supabase
         .rpc('hash_password', { password });
 
       if (hashError) throw hashError;
-       console.log({ name, email, password_hash: hashedPassword, role: 'user' });
-      // Create new user with hashed password
+
+      // Create user record
       const { data: user, error: insertError } = await supabase
         .from('users')
         .insert({
+          id: authData.user.id,
           name,
           email,
           password_hash: hashedPassword,
@@ -100,7 +102,7 @@ export const auth = {
       }
 
       if (!session?.user?.id) {
-        return null; // No user logged in
+        return null;
       }
 
       const { data: user, error } = await supabase
@@ -123,6 +125,16 @@ export const auth = {
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
+    }
+  },
+
+  async logout() {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
     }
   }
 };
