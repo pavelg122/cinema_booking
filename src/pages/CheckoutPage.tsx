@@ -39,16 +39,20 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 
     try {
       console.log('Confirming payment...');
-      const { error: submitError } = await stripe.confirmPayment({
+      const result = await stripe.confirmPayment({
         elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/payment-success`,
-        },
+        redirect: 'if_required',
       });
 
-      // If we get here, there was an immediate error
-      console.error('Payment confirmation error:', submitError);
-      throw submitError || new Error('Payment failed');
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.paymentIntent?.status === 'succeeded') {
+        onSuccess(result.paymentIntent.id);
+      } else {
+        throw new Error('Payment was not successful');
+      }
     } catch (err) {
       console.error('Payment error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
@@ -65,7 +69,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <PaymentElement />
+      <div className="bg-secondary-900 rounded-lg p-4">
+        <PaymentElement />
+      </div>
       
       <button
         type="submit"
