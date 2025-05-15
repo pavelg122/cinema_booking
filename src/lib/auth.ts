@@ -70,7 +70,7 @@ export const auth = {
       // Hash password using database function
       const { data: hashedPassword, error: hashError } = await supabase
         .rpc('hash_password', { password });
-
+console.log("Hashed password from register:", hashedPassword); // Add this line
       if (hashError) throw hashError;
 
       // Create user record
