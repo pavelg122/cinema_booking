@@ -18,8 +18,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     event.preventDefault();
     console.log('Payment form submitted');
 
-    if (!stripe || !elements) {
-      console.error('Stripe not initialized');
+    if (!stripe || !elements || processing) {
+      console.error('Stripe not initialized or already processing');
       return;
     }
 
@@ -30,7 +30,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       console.log('Confirming payment...');
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
-        redirect: 'if_required',
+        confirmParams: {
+          return_url: `${window.location.origin}/payment-success`,
+        },
       });
 
       if (submitError) {
@@ -44,6 +46,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     } catch (err) {
       console.error('Payment error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
+    } finally {
       setProcessing(false);
     }
   };
@@ -57,9 +60,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <div className="bg-secondary-900 rounded-lg p-4">
-        <PaymentElement />
-      </div>
+      <PaymentElement 
+        options={{
+          layout: 'tabs',
+          defaultValues: {
+            billingDetails: {
+              name: '',
+              email: '',
+            }
+          }
+        }}
+      />
       
       <button
         type="submit"
@@ -92,6 +103,32 @@ export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (pay
         colorText: '#ffffff',
         colorDanger: '#ef4444',
         fontFamily: 'Inter, system-ui, sans-serif',
+        borderRadius: '0.5rem',
+        spacingUnit: '4px',
+      },
+      rules: {
+        '.Input': {
+          backgroundColor: '#111827',
+          border: '1px solid #374151',
+        },
+        '.Input:focus': {
+          border: '2px solid #ef4444',
+          boxShadow: '0 0 0 1px #ef4444',
+        },
+        '.Label': {
+          color: '#9CA3AF',
+        },
+        '.Tab': {
+          backgroundColor: '#111827',
+          border: '1px solid #374151',
+        },
+        '.Tab:hover': {
+          backgroundColor: '#1f2937',
+        },
+        '.Tab--selected': {
+          backgroundColor: '#ef4444',
+          border: 'none',
+        },
       },
     },
   }), [clientSecret]);
