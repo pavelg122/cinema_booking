@@ -7,6 +7,7 @@ type Booking = Database['public']['Tables']['bookings']['Row'];
 type Hall = Database['public']['Tables']['halls']['Row'];
 type Seat = Database['public']['Tables']['seats']['Row'];
 type SeatRow = Database['public']['Tables']['seat_rows']['Row'];
+type Payment = Database['public']['Tables']['payments']['Row'];
 
 export const api = {
   // Movies
@@ -165,20 +166,45 @@ export const api = {
     })) || [];
   },
 
+  // Payments
+  async createPayment(userId: string, amount: number, paymentIntentId: string): Promise<Payment> {
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        amount,
+        status: 'completed',
+        provider: 'stripe',
+        provider_payment_id: paymentIntentId
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('No payment data returned');
+    return data;
+  },
+
   // Bookings
-  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number) {
+  async createBooking(
+    userId: string,
+    screeningId: string,
+    seatIds: string[],
+    totalPrice: number,
+    paymentId: string
+  ) {
     try {
-      // Start a transaction
+      // Create booking with payment reference
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
           user_id: userId,
           screening_id: screeningId,
           total_price: totalPrice,
-          status: 'pending',
+          status: 'confirmed',
           booking_date: new Date().toISOString(),
-          payment_method: 'credit_card',
-          payment_id: `temp_${Date.now()}`
+          payment_id: paymentId,
+          payment_method: 'credit_card'
         })
         .select()
         .single();
@@ -227,7 +253,8 @@ export const api = {
           *,
           movies (*),
           halls (*)
-        )
+        ),
+        payments (*)
       `)
       .eq('user_id', userId)
       .order('booking_date', { ascending: false });

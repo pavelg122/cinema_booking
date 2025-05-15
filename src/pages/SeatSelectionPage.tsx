@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { loadStripe } from '@stripe/stripe-js';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
 
@@ -24,6 +25,8 @@ interface SeatRow {
   row: string;
   seats: SeatType[];
 }
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const SeatSelectionPage: React.FC = () => {
   const { screeningId } = useParams<{ screeningId: string }>();
@@ -126,26 +129,59 @@ const SeatSelectionPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      // Create booking in database
-      const booking = await api.createBooking(
-        user.id,
-        screeningId,
-        selectedSeats.map(seat => seat.id),
-        totalPrice
-      );
+      // Initialize Stripe payment
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Failed to load Stripe');
 
-      // Navigate to checkout
-      navigate(`/checkout/${booking.id}`, {
-        state: {
-          screening,
-          movie: screening?.movies,
-          selectedSeats,
-          totalPrice,
+      // Create payment intent
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ amount: totalPrice }),
       });
+
+      const { clientSecret } = await response.json();
+
+      // Confirm payment with Stripe
+      const result = await stripe.confirmCardPayment(clientSecret);
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      if (result.paymentIntent.status === 'succeeded') {
+        // Create payment record
+        const payment = await api.createPayment(
+          user.id,
+          totalPrice,
+          result.paymentIntent.id
+        );
+
+        // Create booking with payment reference
+        const booking = await api.createBooking(
+          user.id,
+          screeningId,
+          selectedSeats.map(seat => seat.id),
+          totalPrice,
+          payment.id
+        );
+
+        // Navigate to success page
+        navigate(`/payment-success`, {
+          state: {
+            booking,
+            screening,
+            movie: screening?.movies,
+            selectedSeats,
+            totalPrice,
+          },
+        });
+      }
     } catch (err) {
-      console.error('Error creating booking:', err);
-      setError('Failed to create booking. Please try again.');
+      console.error('Error processing payment:', err);
+      setError('Failed to process payment. Please try again.');
       setIsProcessing(false);
     }
   };
