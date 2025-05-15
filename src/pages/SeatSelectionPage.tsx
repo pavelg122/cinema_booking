@@ -113,9 +113,16 @@ const SeatSelectionPage: React.FC = () => {
     }
   };
   
-  const handleProceedToCheckout = async () => {
-    if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) return;
+  const handleProceedToCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Prevent default button behavior
+    e.preventDefault();
     
+    // Early return if already processing or missing required data
+    if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) {
+      return;
+    }
+    
+    // Set processing state immediately to prevent multiple clicks
     setIsProcessing(true);
     setError(null);
     
