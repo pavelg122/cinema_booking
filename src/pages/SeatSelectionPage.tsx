@@ -89,9 +89,30 @@ const SeatSelectionPage: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [reservationId]);
+
+  // Refresh seat map periodically to show latest availability
+  useEffect(() => {
+    if (!screeningId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const seatsData = await api.getSeatsForScreening(screeningId);
+        setSeatMap(seatsData);
+      } catch (err) {
+        console.error('Error refreshing seat map:', err);
+      }
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [screeningId]);
   
   const handleSeatClick = async (row: string, number: number, status: string, price: number, seatId: string) => {
-    if (status === 'occupied' || status === 'reserved') return;
+    setError(null);
+    
+    if (status === 'occupied' || status === 'reserved') {
+      setError('This seat is no longer available');
+      return;
+    }
     
     const existingIndex = selectedSeats.findIndex(
       seat => seat.row === row && seat.number === number
@@ -129,6 +150,19 @@ const SeatSelectionPage: React.FC = () => {
           return;
         }
 
+        // Double check seat availability before attempting to reserve
+        const currentSeatMap = await api.getSeatsForScreening(screeningId);
+        const currentRow = currentSeatMap.find(r => r.row === row);
+        const currentSeat = currentRow?.seats.find(s => s.number === number);
+
+        if (!currentSeat || currentSeat.status !== 'available') {
+          setError('This seat is no longer available');
+          
+          // Refresh the seat map to show latest availability
+          setSeatMap(currentSeatMap);
+          return;
+        }
+
         // Select seat
         const newSeat: Seat = {
           id: seatId,
@@ -136,28 +170,42 @@ const SeatSelectionPage: React.FC = () => {
           number,
         };
         
-        // Create or update reservation
-        const newReservationId = await api.reserveSeats(screeningId, [...selectedSeats, newSeat]);
-        setReservationId(newReservationId);
+        try {
+          // Create or update reservation
+          const newReservationId = await api.reserveSeats(screeningId, [...selectedSeats, newSeat]);
+          setReservationId(newReservationId);
 
-        setSelectedSeats([...selectedSeats, newSeat]);
-        
-        const updatedSeatMap = [...seatMap];
-        const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
-        if (rowIndex > -1) {
-          const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
-            s => s.row === row && s.number === number
-          );
-          if (seatIndex > -1) {
-            updatedSeatMap[rowIndex].seats[seatIndex].status = 'selected';
+          setSelectedSeats([...selectedSeats, newSeat]);
+          
+          const updatedSeatMap = [...seatMap];
+          const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
+          if (rowIndex > -1) {
+            const seatIndex = updatedSeatMap[rowIndex].seats.findIndex(
+              s => s.row === row && s.number === number
+            );
+            if (seatIndex > -1) {
+              updatedSeatMap[rowIndex].seats[seatIndex].status = 'selected';
+            }
           }
+          setSeatMap(updatedSeatMap);
+          setTotalPrice(prevPrice => prevPrice + price);
+        } catch (reserveError) {
+          console.error('Error reserving seat:', reserveError);
+          
+          // Refresh seat map to show latest availability
+          const updatedSeatMap = await api.getSeatsForScreening(screeningId);
+          setSeatMap(updatedSeatMap);
+          
+          setError('This seat was just reserved by another user. Please select a different seat.');
         }
-        setSeatMap(updatedSeatMap);
-        setTotalPrice(prevPrice => prevPrice + price);
       }
     } catch (err) {
       console.error('Error handling seat selection:', err);
       setError('Failed to reserve seat. Please try again.');
+      
+      // Refresh seat map on error
+      const updatedSeatMap = await api.getSeatsForScreening(screeningId);
+      setSeatMap(updatedSeatMap);
     }
   };
   
@@ -299,7 +347,7 @@ const SeatSelectionPage: React.FC = () => {
                           : 'seat-occupied'
                       }`}
                       onClick={() => handleSeatClick(seat.row, seat.number, seat.status, seat.price, seat.id)}
-                      disabled={seat.status === 'occupied'}
+                      disabled={seat.status === 'occupied' || seat.status === 'reserved'}
                     >
                       {seat.number}
                     </button>
