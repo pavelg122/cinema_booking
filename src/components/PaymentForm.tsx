@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise } from '../lib/stripe';
 import { AlertCircle } from 'lucide-react';
@@ -16,10 +16,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log('Payment form submitted');
 
     if (!stripe || !elements || processing) {
-      console.error('Stripe not initialized or already processing');
       return;
     }
 
@@ -27,7 +25,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     setError(null);
 
     try {
-      console.log('Confirming payment...');
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
@@ -38,7 +35,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       }
 
       if (paymentIntent?.status === 'succeeded') {
-        console.log('Payment succeeded:', paymentIntent.id);
         onSuccess(paymentIntent.id);
       }
     } catch (err) {
@@ -58,18 +54,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <div className="bg-secondary-900 rounded-lg p-4">
-        <PaymentElement 
-          options={{
-            layout: {
-              type: 'tabs',
-              defaultCollapsed: false,
-              radios: false,
-              spacedAccordionItems: false
-            }
-          }}
-        />
-      </div>
+      <PaymentElement />
       
       <button
         type="submit"
@@ -90,53 +75,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 };
 
 export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
-  console.log('Rendering StripePaymentForm with clientSecret:', clientSecret);
-
-  const options = useMemo(() => ({
-    clientSecret,
-    appearance: {
-      theme: 'night',
-      variables: {
-        colorPrimary: '#ef4444',
-        colorBackground: '#1f2937',
-        colorText: '#ffffff',
-        colorDanger: '#ef4444',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        borderRadius: '0.5rem',
-        spacingUnit: '4px',
-      },
-      rules: {
-        '.Input': {
-          backgroundColor: '#111827',
-          border: '1px solid #374151',
-          color: '#ffffff'
-        },
-        '.Input:focus': {
-          border: '2px solid #ef4444',
-          boxShadow: '0 0 0 1px #ef4444'
-        },
-        '.Label': {
-          color: '#9CA3AF'
-        },
-        '.Tab': {
-          backgroundColor: '#111827',
-          border: '1px solid #374151'
-        },
-        '.Tab:hover': {
-          backgroundColor: '#1f2937'
-        },
-        '.Tab--selected': {
-          backgroundColor: '#ef4444',
-          border: 'none'
-        }
-      }
-    }
-  }), [clientSecret]);
-
   return (
     <Elements 
       stripe={stripePromise} 
-      options={options}
+      options={{
+        clientSecret,
+        appearance: {
+          theme: 'night',
+          variables: {
+            colorPrimary: '#ef4444',
+            colorBackground: '#1f2937',
+            colorText: '#ffffff',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          }
+        }
+      }}
     >
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
     </Elements>
