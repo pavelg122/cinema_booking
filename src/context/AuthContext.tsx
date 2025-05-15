@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
 import { auth } from '../lib/auth';
-import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +8,7 @@ interface AuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
   isAdmin: boolean;
 }
 
@@ -26,27 +25,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        try {
-          const currentUser = await auth.getCurrentUser();
-          if (currentUser) {
-            setUser(currentUser);
-            setIsAdmin(currentUser.role === 'admin');
-          }
-        } catch (err) {
-          console.error('Error getting user:', err);
-          setUser(null);
-          setIsAdmin(false);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAdmin(false);
-      }
-    });
-
-    // Initial session check
     const initAuth = async () => {
       try {
         const currentUser = await auth.getCurrentUser();
@@ -54,19 +32,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(currentUser);
           setIsAdmin(currentUser.role === 'admin');
         }
-      } catch (err) {
-        console.error('Auth initialization error:', err);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
       } finally {
         setLoading(false);
       }
     };
 
     initAuth();
-
-    // Cleanup subscription
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -99,15 +72,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    try {
-      await auth.logout();
-      setUser(null);
-      setIsAdmin(false);
-    } catch (err) {
-      console.error('Logout error:', err);
-      throw err;
-    }
+  const logout = () => {
+    setUser(null);
+    setIsAdmin(false);
   };
 
   return (
