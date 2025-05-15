@@ -143,6 +143,4 @@ export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (pay
   );
 };
 
-export { PaymentForm };
-
 export default StripePaymentForm;
