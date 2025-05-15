@@ -113,24 +113,16 @@ const SeatSelectionPage: React.FC = () => {
     }
   };
   
-  const handleProceedToCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    
+  const handleProceedToCheckout = async () => {
     if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) {
       return;
     }
-    
+
     setIsProcessing(true);
     setError(null);
-    
+
     try {
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Failed to load Stripe');
-
-      if (isNaN(totalPrice) || totalPrice <= 0) {
-        throw new Error('Invalid total price');
-      }
-
+      // Create payment intent
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
         method: 'POST',
         headers: {
@@ -141,32 +133,24 @@ const SeatSelectionPage: React.FC = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to process payment' }));
-        throw new Error(errorData.error || 'Failed to process payment');
+        throw new Error('Failed to create payment intent');
       }
 
       const { clientSecret } = await response.json();
-      if (!clientSecret) {
-        throw new Error('Invalid response from payment server');
-      }
 
-      const { error: stripeError } = await stripe.confirmCardPayment(clientSecret);
-      if (stripeError) {
-        throw new Error(stripeError.message || 'Payment failed');
-      }
-
+      // Navigate to checkout with payment details
       navigate(`/checkout/${screeningId}`, {
         state: {
           screening,
           movie: screening?.movies,
           selectedSeats,
           totalPrice,
-          clientSecret
+          clientSecret,
         },
       });
     } catch (err) {
-      console.error('Error processing payment:', err);
-      setError(err instanceof Error ? err.message : 'Failed to process payment');
+      console.error('Error initiating payment:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate payment');
       setIsProcessing(false);
     }
   };
