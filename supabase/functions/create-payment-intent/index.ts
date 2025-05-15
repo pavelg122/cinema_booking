@@ -13,11 +13,17 @@ const supabase = createClient(
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
   }
 
   try {
@@ -68,6 +74,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ clientSecret: paymentIntent.client_secret }),
       {
+        status: 200,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',

@@ -26,11 +26,12 @@ export const createPaymentIntent = async (amount: number) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create payment intent');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create payment intent');
     }
 
     const data = await response.json();
-    console.log('Payment intent created successfully');
+    console.log('Payment intent created successfully:', data);
     return data;
   } catch (error) {
     console.error('Error creating payment intent:', error);
