@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
@@ -15,7 +15,7 @@ const CheckoutPage = () => {
   
   const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
-  const handlePaymentSuccess = useCallback(async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
     if (!user?.id || !screeningId || !selectedSeats || isProcessing) {
       return;
     }
@@ -47,7 +47,7 @@ const CheckoutPage = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [user?.id, screeningId, selectedSeats, totalPrice, navigate, screening, movie, isProcessing]);
+  };
   
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
     navigate('/movies');
