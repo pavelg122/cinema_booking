@@ -6,7 +6,7 @@ type User = Database['public']['Tables']['users']['Row'];
 export const auth = {
   async login(email: string, password: string) {
     try {
-      // First get the user by email
+      // First get the user to check if they exist
       const { data: user, error: userError } = await supabase
         .from('users')
         .select(`
@@ -18,28 +18,18 @@ export const auth = {
         .eq('email', email)
         .single();
 
-      if (userError || !user) {
-        throw new Error('Invalid login credentials');
-      }
+      if (userError) throw userError;
+      if (!user) throw new Error('User not found');
 
-      // Hash the provided password
-      const { data: hashedPassword, error: hashError } = await supabase
-        .rpc('hash_password', { password });
+      // Verify password using database function
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_password', {
+          password,
+          password_hash: user.password_hash
+        });
 
-      if (hashError) throw hashError;
-
-      // Compare the hashed passwords
-      if (hashedPassword !== user.password_hash) {
-        throw new Error('Invalid login credentials');
-      }
-
-      // Create a session using Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) throw authError;
+      if (verifyError) throw verifyError;
+      if (!isValid) throw new Error('Invalid password');
 
       return {
         ...user,
@@ -53,31 +43,28 @@ export const auth = {
 
   async register(name: string, email: string, password: string) {
     try {
-      // First sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name
-          }
-        }
-      });
+      // Check if user already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Registration failed');
+      if (checkError) throw checkError;
+      if (existingUser) {
+        throw new Error('User already exists');
+      }
 
       // Hash password using database function
       const { data: hashedPassword, error: hashError } = await supabase
         .rpc('hash_password', { password });
-console.log("Hashed password from register:", hashedPassword); // Add this line
-      if (hashError) throw hashError;
 
-      // Create user record
+      if (hashError) throw hashError;
+       console.log({ name, email, password_hash: hashedPassword, role: 'user' });
+      // Create new user with hashed password
       const { data: user, error: insertError } = await supabase
         .from('users')
         .insert({
-          id: authData.user.id,
           name,
           email,
           password_hash: hashedPassword,
@@ -113,7 +100,7 @@ console.log("Hashed password from register:", hashedPassword); // Add this line
       }
 
       if (!session?.user?.id) {
-        return null;
+        return null; // No user logged in
       }
 
       const { data: user, error } = await supabase
@@ -136,16 +123,6 @@ console.log("Hashed password from register:", hashedPassword); // Add this line
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
-    }
-  },
-
-  async logout() {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
     }
   }
 };
