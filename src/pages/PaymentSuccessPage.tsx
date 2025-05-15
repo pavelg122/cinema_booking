@@ -1,44 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, Ticket } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import RatingPopup from '../components/RatingPopup';
 
 const PaymentSuccessPage: React.FC = () => {
-  const [showRating, setShowRating] = useState(false);
+  const [showRating, setShowRating] = useState(true);
   const location = useLocation();
   const { booking, screening, movie, selectedSeats, totalPrice } = location.state || {};
-
-  useEffect(() => {
-    const checkFirstBooking = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) return;
-
-        // Get user's bookings
-        const { data: bookings } = await supabase
-          .from('bookings')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: true })
-          .limit(2);
-
-        // Show rating popup if this is their first or second booking
-        if (bookings && bookings.length <= 1) {
-          setShowRating(true);
-        }
-      } catch (error) {
-        console.error('Error checking bookings:', error);
-      }
-    };
-
-    // Small delay to ensure the booking is registered
-    const timer = setTimeout(() => {
-      checkFirstBooking();
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   if (!booking || !screening || !movie) {
     return (
