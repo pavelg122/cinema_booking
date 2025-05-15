@@ -6,12 +6,16 @@ if (!publishableKey) {
   throw new Error('Missing Stripe publishable key in environment variables');
 }
 
+console.log('Initializing Stripe with publishable key:', publishableKey);
+
 // Initialize Stripe
 export const stripePromise = loadStripe(publishableKey);
 
 // Create payment intent
 export const createPaymentIntent = async (amount: number) => {
   try {
+    console.log('Creating payment intent for amount:', amount);
+    
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
       method: 'POST',
       headers: {
@@ -26,24 +30,11 @@ export const createPaymentIntent = async (amount: number) => {
       throw new Error(errorData.error || 'Failed to create payment intent');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Payment intent created successfully');
+    return data;
   } catch (error) {
     console.error('Error creating payment intent:', error);
     throw error;
   }
-};
-
-export const stripeElementsOptions = {
-  appearance: {
-    theme: 'night',
-    variables: {
-      colorPrimary: '#ef4444',
-      colorBackground: '#18181b',
-      colorText: '#ffffff',
-      colorDanger: '#ef4444',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      borderRadius: '0.5rem',
-      spacingUnit: '4px',
-    },
-  },
 };
