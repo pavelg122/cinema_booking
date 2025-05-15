@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { stripePromise, stripeElementsOptions } from '../lib/stripe';
+import { stripePromise } from '../lib/stripe';
 import { AlertCircle } from 'lucide-react';
 
 interface PaymentFormProps {
@@ -14,24 +14,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    if (!stripe || !elements) {
-      console.log('Stripe or Elements not initialized');
-    } else {
-      console.log('Stripe and Elements initialized successfully');
-    }
-  }, [stripe, elements]);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    console.log('Payment form submitted');
 
     if (!stripe || !elements) {
       console.error('Stripe not initialized');
-      setError('Payment system not initialized. Please refresh the page.');
-      return;
-    }
-
-    if (processing) {
       return;
     }
 
@@ -52,8 +40,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       if (paymentIntent?.status === 'succeeded') {
         console.log('Payment succeeded:', paymentIntent.id);
         onSuccess(paymentIntent.id);
-      } else {
-        throw new Error('Payment was not successful');
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -71,7 +57,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <div className="min-h-[300px] flex items-center justify-center">
+      <div className="bg-secondary-900 rounded-lg p-4">
         <PaymentElement />
       </div>
       
@@ -94,29 +80,25 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 };
 
 export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
-  console.log('Initializing StripePaymentForm with clientSecret:', clientSecret);
-
-  if (!clientSecret) {
-    console.error('No client secret provided');
-    return null;
-  }
+  console.log('Rendering StripePaymentForm with clientSecret:', clientSecret);
 
   return (
-    <Elements stripe={stripePromise} options={{ 
-      clientSecret,
-      appearance: {
-        theme: 'night',
-        variables: {
-          colorPrimary: '#ef4444',
-          colorBackground: '#18181b',
-          colorText: '#ffffff',
-          colorDanger: '#ef4444',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          borderRadius: '0.5rem',
-          spacingUnit: '4px',
+    <Elements 
+      stripe={stripePromise} 
+      options={{
+        clientSecret,
+        appearance: {
+          theme: 'night',
+          variables: {
+            colorPrimary: '#ef4444',
+            colorBackground: '#1f2937',
+            colorText: '#ffffff',
+            colorDanger: '#ef4444',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          },
         },
-      },
-    }}>
+      }}
+    >
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
     </Elements>
   );

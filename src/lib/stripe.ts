@@ -1,14 +1,14 @@
 import { loadStripe } from '@stripe/stripe-js';
 
+// Initialize Stripe
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 if (!publishableKey) {
-  throw new Error('Missing Stripe publishable key in environment variables');
+  throw new Error('Missing Stripe publishable key');
 }
 
-console.log('Initializing Stripe with publishable key:', publishableKey);
+console.log('Initializing Stripe with key:', publishableKey);
 
-// Initialize Stripe
 export const stripePromise = loadStripe(publishableKey);
 
 // Create payment intent
@@ -24,10 +24,9 @@ export const createPaymentIntent = async (amount: number) => {
       },
       body: JSON.stringify({ amount }),
     });
-    
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create payment intent');
+      throw new Error('Failed to create payment intent');
     }
 
     const data = await response.json();
