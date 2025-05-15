@@ -114,15 +114,12 @@ const SeatSelectionPage: React.FC = () => {
   };
   
   const handleProceedToCheckout = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Prevent default button behavior
     e.preventDefault();
     
-    // Early return if already processing or missing required data
     if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) {
       return;
     }
     
-    // Set processing state immediately to prevent multiple clicks
     setIsProcessing(true);
     setError(null);
     
@@ -130,7 +127,6 @@ const SeatSelectionPage: React.FC = () => {
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Failed to load Stripe');
 
-      // Ensure totalPrice is a valid number
       if (isNaN(totalPrice) || totalPrice <= 0) {
         throw new Error('Invalid total price');
       }
@@ -149,46 +145,28 @@ const SeatSelectionPage: React.FC = () => {
         throw new Error(errorData.error || 'Failed to process payment');
       }
 
-      const data = await response.json();
-      if (!data.clientSecret) {
+      const { clientSecret } = await response.json();
+      if (!clientSecret) {
         throw new Error('Invalid response from payment server');
       }
 
-      const result = await stripe.confirmCardPayment(data.clientSecret);
-
-      if (result.error) {
-        throw new Error(result.error.message || 'Payment failed');
+      const { error: stripeError } = await stripe.confirmCardPayment(clientSecret);
+      if (stripeError) {
+        throw new Error(stripeError.message || 'Payment failed');
       }
 
-      if (result.paymentIntent.status === 'succeeded') {
-        const payment = await api.createPayment(
-          user.id,
+      navigate(`/checkout/${screeningId}`, {
+        state: {
+          screening,
+          movie: screening?.movies,
+          selectedSeats,
           totalPrice,
-          result.paymentIntent.id
-        );
-
-        const booking = await api.createBooking(
-          user.id,
-          screeningId,
-          selectedSeats.map(seat => seat.id),
-          totalPrice,
-          payment.id
-        );
-
-        navigate('/payment-success', {
-          state: {
-            booking,
-            screening,
-            movie: screening?.movies,
-            selectedSeats,
-            totalPrice,
-          },
-        });
-      }
+          clientSecret
+        },
+      });
     } catch (err) {
       console.error('Error processing payment:', err);
-      setError(err instanceof Error ? err.message : 'Failed to process payment. Please try again.');
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to process payment');
       setIsProcessing(false);
     }
   };
