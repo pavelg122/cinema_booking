@@ -1,95 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import { CreditCard, Ticket, Clock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-
-interface PaymentFormProps {
-  clientSecret: string;
-  onSuccess: (paymentIntentId: string) => void;
-}
-
-const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    console.log('Starting payment submission...');
-
-    if (!stripe || !elements) {
-      console.error('Stripe or Elements not initialized');
-      setError('Payment system not initialized. Please refresh the page.');
-      return;
-    }
-
-    if (processing) {
-      console.log('Payment already processing, skipping...');
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    try {
-      console.log('Confirming payment...');
-      const result = await stripe.confirmPayment({
-        elements,
-        redirect: 'if_required',
-      });
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      if (result.paymentIntent?.status === 'succeeded') {
-        onSuccess(result.paymentIntent.id);
-      } else {
-        throw new Error('Payment was not successful');
-      }
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md flex items-start">
-          <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-      
-      <div className="bg-secondary-900 rounded-lg p-4">
-        <PaymentElement />
-      </div>
-      
-      <button
-        type="submit"
-        disabled={!stripe || processing}
-        className="btn btn-primary w-full"
-      >
-        {processing ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2" />
-            Processing Payment...
-          </div>
-        ) : (
-          'Pay Now'
-        )}
-      </button>
-    </form>
-  );
-};
+import { StripePaymentForm } from '../components/PaymentForm';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -99,9 +13,9 @@ const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
+  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId, reservationIds } = location.state || {};
 
-  console.log('Checkout page state:', { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId });
+  console.log('Checkout page state:', { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId, reservationIds });
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     console.log('Payment success callback with ID:', paymentIntentId);
@@ -151,20 +65,6 @@ const CheckoutPage: React.FC = () => {
     return null;
   }
 
-  const options = {
-    clientSecret,
-    appearance: {
-      theme: 'night',
-      variables: {
-        colorPrimary: '#ef4444',
-        colorBackground: '#18181b',
-        colorText: '#ffffff',
-        colorDanger: '#ef4444',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      },
-    },
-  };
-
   return (
     <div className="section">
       <div className="mb-8">
@@ -190,12 +90,10 @@ const CheckoutPage: React.FC = () => {
               </div>
             )}
             
-            <Elements stripe={stripePromise} options={options}>
-              <PaymentForm 
-                clientSecret={clientSecret}
-                onSuccess={handlePaymentSuccess}
-              />
-            </Elements>
+            <StripePaymentForm 
+              clientSecret={clientSecret}
+              onSuccess={handlePaymentSuccess}
+            />
           </div>
         </div>
 
@@ -236,7 +134,7 @@ const CheckoutPage: React.FC = () => {
             </div>
             
             <div className="mt-6 flex items-start text-xs text-secondary-400">
-              <Clock className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+              <AlertCircle className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
               <p>Your seats are reserved for 10 minutes. Please complete the payment within this time to confirm your booking.</p>
             </div>
           </div>
