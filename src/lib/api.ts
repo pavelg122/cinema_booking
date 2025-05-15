@@ -167,46 +167,55 @@ export const api = {
 
   // Bookings
   async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number) {
-    // Generate a temporary payment ID
-    const paymentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-
-    // Start a transaction
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        user_id: userId,
-        screening_id: screeningId,
-        total_price: totalPrice,
-        status: 'pending',
-        booking_date: new Date().toISOString(),
-        payment_method: 'credit_card',
-        payment_id: paymentId
-      })
-      .select()
-      .single();
-
-    if (bookingError) throw bookingError;
-
-    // Insert booked seats
-    const bookedSeats = seatIds.map(seatId => ({
-      booking_id: booking.id,
-      seat_id: seatId
-    }));
-
-    const { error: seatsError } = await supabase
-      .from('booked_seats')
-      .insert(bookedSeats);
-
-    if (seatsError) {
-      // If there's an error inserting seats, delete the booking
-      await supabase
+    try {
+      // Start a transaction
+      const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .delete()
-        .eq('id', booking.id);
-      throw seatsError;
-    }
+        .insert({
+          user_id: userId,
+          screening_id: screeningId,
+          total_price: totalPrice,
+          status: 'pending',
+          booking_date: new Date().toISOString(),
+          payment_method: 'credit_card',
+          payment_id: `temp_${Date.now()}`
+        })
+        .select()
+        .single();
 
-    return booking;
+      if (bookingError) {
+        console.error('Booking creation error:', bookingError);
+        throw bookingError;
+      }
+
+      if (!booking) {
+        throw new Error('No booking returned after creation');
+      }
+
+      // Insert booked seats
+      const bookedSeats = seatIds.map(seatId => ({
+        booking_id: booking.id,
+        seat_id: seatId
+      }));
+
+      const { error: seatsError } = await supabase
+        .from('booked_seats')
+        .insert(bookedSeats);
+
+      if (seatsError) {
+        // If there's an error inserting seats, delete the booking
+        await supabase
+          .from('bookings')
+          .delete()
+          .eq('id', booking.id);
+        throw seatsError;
+      }
+
+      return booking;
+    } catch (error) {
+      console.error('Transaction error:', error);
+      throw error;
+    }
   },
 
   async getUserBookings(userId: string) {
