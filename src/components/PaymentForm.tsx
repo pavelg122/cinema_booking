@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise, stripeElementsOptions } from '../lib/stripe';
 import { AlertCircle } from 'lucide-react';
@@ -14,22 +14,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    console.log('PaymentForm mounted with stripe:', !!stripe, 'elements:', !!elements);
-  }, [stripe, elements]);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log('Starting payment submission...');
 
     if (!stripe || !elements) {
-      console.error('Stripe or Elements not initialized');
       setError('Payment system not initialized. Please refresh the page.');
       return;
     }
 
     if (processing) {
-      console.log('Payment already processing, skipping...');
       return;
     }
 
@@ -37,26 +30,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     setError(null);
 
     try {
-      console.log('Confirming payment...');
-      const result = await stripe.confirmPayment({
+      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
       });
 
-      if (result.error) {
-        console.error('Payment confirmation error:', result.error);
-        throw result.error;
+      if (submitError) {
+        throw submitError;
       }
 
-      if (result.paymentIntent?.status === 'succeeded') {
-        console.log('Payment succeeded:', result.paymentIntent.id);
-        onSuccess(result.paymentIntent.id);
+      if (paymentIntent?.status === 'succeeded') {
+        onSuccess(paymentIntent.id);
       } else {
-        console.error('Payment not successful:', result.paymentIntent?.status);
         throw new Error('Payment was not successful');
       }
     } catch (err) {
-      console.error('Payment error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
       setProcessing(false);
     }
@@ -71,9 +59,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <div className="bg-secondary-900 rounded-lg p-4">
-        <PaymentElement />
-      </div>
+      <PaymentElement />
       
       <button
         type="submit"
@@ -94,21 +80,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 };
 
 export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
-  console.log('StripePaymentForm rendering with clientSecret:', !!clientSecret);
-  console.log('Stripe Elements options:', stripeElementsOptions);
-
-  useEffect(() => {
-    console.log('StripePaymentForm mounted');
-    return () => console.log('StripePaymentForm unmounted');
-  }, []);
-
   if (!clientSecret) {
-    console.error('No client secret provided to StripePaymentForm');
     return null;
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ ...stripeElementsOptions, clientSecret }}>
+    <Elements stripe={stripePromise} options={{ clientSecret, ...stripeElementsOptions }}>
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
     </Elements>
   );
