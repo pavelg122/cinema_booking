@@ -161,6 +161,35 @@ export const api = {
     })) || [];
   },
 
+  async reserveSeats(screeningId: string, seats: { id: string }[]) {
+    const { data, error } = await supabase
+      .rpc('reserve_seats', {
+        p_screening_id: screeningId,
+        p_seat_ids: seats.map(s => s.id)
+      });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateSeatReservation(reservationId: string) {
+    const { error } = await supabase
+      .rpc('update_seat_reservation', {
+        p_reservation_id: reservationId
+      });
+
+    if (error) throw error;
+  },
+
+  async cancelSeatReservation(reservationId: string) {
+    const { error } = await supabase
+      .rpc('cancel_seat_reservation', {
+        p_reservation_id: reservationId
+      });
+
+    if (error) throw error;
+  },
+
   // Payments
   async createPayment(userId: string, amount: number, paymentIntentId: string): Promise<Payment> {
     const { data, error } = await supabase
