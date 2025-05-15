@@ -33,13 +33,12 @@ function App() {
           <Route path="movies/:id" element={<MovieDetailPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
-          <Route path="payment-success" element={<PaymentSuccessPage />} />
-          <Route path="*" element={<NotFoundPage />} />
           
           {/* Protected User Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="seats/:screeningId" element={<SeatSelectionPage />} />
-            <Route path="checkout/:bookingId" element={<CheckoutPage />} />
+            <Route path="checkout" element={<CheckoutPage />} />
+            <Route path="payment-success" element={<PaymentSuccessPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="bookings" element={<BookingsPage />} />
           </Route>
@@ -53,6 +52,9 @@ function App() {
           <Route path="bookings" element={<AdminBookings />} />
           <Route path="reports" element={<AdminReports />} />
         </Route>
+
+        {/* 404 Route */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>
   );
