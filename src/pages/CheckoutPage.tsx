@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { StripePaymentForm } from '../components/PaymentForm';
+import { PaymentForm } from '../components/PaymentForm';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -90,7 +90,7 @@ const CheckoutPage: React.FC = () => {
               </div>
             )}
             
-            <StripePaymentForm 
+            <PaymentForm 
               clientSecret={clientSecret}
               onSuccess={handlePaymentSuccess}
             />
