@@ -21,8 +21,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    console.log('Starting payment submission...');
 
-    if (!stripe || !elements || processing) {
+    if (!stripe || !elements) {
+      console.error('Stripe or Elements not initialized');
+      setError('Payment system not initialized. Please refresh the page.');
+      return;
+    }
+
+    if (processing) {
+      console.log('Payment already processing, skipping...');
       return;
     }
 
@@ -30,6 +38,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     setError(null);
 
     try {
+      console.log('Confirming payment...');
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -37,13 +46,18 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         },
       });
 
+      console.log('Payment confirmation response:', { submitError, paymentIntent });
+
       if (submitError) {
+        console.error('Payment confirmation error:', submitError);
         throw submitError;
       }
 
       if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log('Payment succeeded:', paymentIntent);
         onSuccess(paymentIntent.id);
       } else {
+        console.error('Payment did not succeed:', paymentIntent);
         throw new Error('Payment failed. Please try again.');
       }
     } catch (err) {
@@ -92,19 +106,25 @@ const CheckoutPage: React.FC = () => {
   
   const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
+  console.log('Checkout page state:', { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId });
+
   const handlePaymentSuccess = async (paymentIntentId: string) => {
+    console.log('Payment success callback with ID:', paymentIntentId);
+    
     try {
       if (!user?.id || !screeningId || !selectedSeats) {
-        throw new Error('Missing required information');
+        console.error('Missing required information:', { userId: user?.id, screeningId, selectedSeats });
+        throw new Error('Missing required booking information');
       }
 
       setIsProcessing(true);
       setError(null);
 
-      // Create payment record
+      console.log('Creating payment record...');
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
+      console.log('Payment record created:', payment);
 
-      // Create booking with payment reference
+      console.log('Creating booking...');
       const booking = await api.createBooking(
         user.id,
         screeningId,
@@ -112,6 +132,7 @@ const CheckoutPage: React.FC = () => {
         totalPrice,
         payment.id
       );
+      console.log('Booking created:', booking);
 
       // Navigate to success page
       navigate('/payment-success', {
@@ -131,6 +152,7 @@ const CheckoutPage: React.FC = () => {
   };
   
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
+    console.error('Missing required checkout information');
     navigate('/movies');
     return null;
   }
@@ -153,6 +175,13 @@ const CheckoutPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <div className="bg-secondary-800 rounded-lg p-6">
+            {error && (
+              <div className="mb-6 bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md flex items-start">
+                <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            
             <Elements stripe={stripePromise} options={{ clientSecret }}>
               <PaymentForm 
                 clientSecret={clientSecret}
