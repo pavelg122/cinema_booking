@@ -6,16 +6,13 @@ type User = Database['public']['Tables']['users']['Row'];
 export const auth = {
   async login(email: string, password: string) {
     try {
-      // Use Supabase Auth for password verification
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // First verify the password using database function
+      const { data: hashedPassword, error: hashError } = await supabase
+        .rpc('hash_password', { password });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Invalid login credentials');
+      if (hashError) throw hashError;
 
-      // Get the user details after successful authentication
+      // Get the user details and verify password
       const { data: user, error: userError } = await supabase
         .from('users')
         .select(`
@@ -24,11 +21,25 @@ export const auth = {
             name
           )
         `)
-        .eq('id', authData.user.id)
+        .eq('email', email)
+        .eq('password_hash', hashedPassword)
         .single();
 
-      if (userError) throw userError;
-      if (!user) throw new Error('User not found');
+      if (userError) {
+        throw new Error('Invalid login credentials');
+      }
+      
+      if (!user) {
+        throw new Error('Invalid login credentials');
+      }
+
+      // Create a session using Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) throw authError;
 
       return {
         ...user,
