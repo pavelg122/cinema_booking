@@ -244,7 +244,8 @@ const SeatSelectionPage: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create payment intent');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create payment intent');
       }
 
       const { clientSecret } = await response.json();

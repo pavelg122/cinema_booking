@@ -21,30 +21,35 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { amount, screeningId, seatIds, reservationId } = await req.json();
+    const { amount, screeningId, seatIds, reservationIds } = await req.json();
 
     // Validate input
     if (!amount || isNaN(amount) || amount <= 0) {
       throw new Error('Invalid amount provided');
     }
 
-    if (!screeningId || !seatIds || !seatIds.length || !reservationId) {
+    if (!screeningId || !seatIds || !seatIds.length || !reservationIds || !reservationIds.length) {
       throw new Error('Missing required booking information');
     }
 
-    // Verify seat reservation
-    const { data: reservation, error: reservationError } = await supabase
+    // Verify seat reservations
+    const { data: reservations, error: reservationError } = await supabase
       .from('seat_reservations')
-      .select('expires_at')
-      .eq('id', reservationId)
-      .single();
+      .select('id, expires_at')
+      .in('id', reservationIds);
 
-    if (reservationError || !reservation) {
-      throw new Error('Seat reservation not found or expired');
+    if (reservationError || !reservations || reservations.length !== reservationIds.length) {
+      throw new Error('One or more seat reservations not found');
     }
 
-    if (new Date(reservation.expires_at) <= new Date()) {
-      throw new Error('Seat reservation has expired');
+    // Check if any reservations have expired
+    const now = new Date();
+    const expiredReservations = reservations.filter(
+      reservation => new Date(reservation.expires_at) <= now
+    );
+
+    if (expiredReservations.length > 0) {
+      throw new Error('One or more seat reservations have expired');
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -56,7 +61,7 @@ Deno.serve(async (req) => {
       metadata: {
         screeningId,
         seatIds: JSON.stringify(seatIds),
-        reservationId
+        reservationIds: JSON.stringify(reservationIds)
       },
     });
 
