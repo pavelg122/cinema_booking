@@ -98,11 +98,13 @@ const CheckoutPage: React.FC = () => {
         throw new Error('Missing required information');
       }
 
+      setIsProcessing(true);
+
       // Create payment record
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
 
       // Create booking with payment reference
-      const booking = await api.createBooking(
+      await api.createBooking(
         user.id,
         screeningId,
         selectedSeats.map(seat => seat.id),
@@ -110,10 +112,9 @@ const CheckoutPage: React.FC = () => {
         payment.id
       );
 
-      // Navigate to success page with booking details
+      // Navigate to success page
       navigate('/payment-success', {
         state: {
-          booking,
           screening,
           movie,
           selectedSeats,
