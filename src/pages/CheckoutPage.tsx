@@ -35,17 +35,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         confirmParams: {
           return_url: `${window.location.origin}/payment-success`,
         },
-        redirect: 'if_required',
       });
 
       if (submitError) {
         throw submitError;
       }
 
-      if (paymentIntent.status === 'succeeded') {
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
         onSuccess(paymentIntent.id);
       } else {
-        throw new Error('Payment not completed');
+        throw new Error('Payment failed. Please try again.');
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -99,6 +98,9 @@ const CheckoutPage: React.FC = () => {
         throw new Error('Missing required information');
       }
 
+      setIsProcessing(true);
+      setError(null);
+
       // Create payment record
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
 
@@ -123,7 +125,7 @@ const CheckoutPage: React.FC = () => {
       });
     } catch (err) {
       console.error('Error creating booking:', err);
-      setError('Failed to complete booking. Please contact support.');
+      setError('Failed to complete booking. Please try again.');
       setIsProcessing(false);
     }
   };
