@@ -13,23 +13,29 @@ const PaymentSuccessPage: React.FC = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) return;
 
-        // Check if user has any previous ratings
-        const { data: ratings } = await supabase
-          .from('ratings')
+        // Get user's bookings
+        const { data: bookings } = await supabase
+          .from('bookings')
           .select('id')
           .eq('user_id', session.user.id)
-          .limit(1);
+          .order('created_at', { ascending: true })
+          .limit(2);
 
-        // Show rating popup if this is their first booking
-        if (!ratings?.length) {
+        // Show rating popup if this is their first or second booking
+        if (bookings && bookings.length <= 1) {
           setShowRating(true);
         }
       } catch (error) {
-        console.error('Error checking first booking:', error);
+        console.error('Error checking bookings:', error);
       }
     };
 
-    checkFirstBooking();
+    // Small delay to ensure the booking is registered
+    const timer = setTimeout(() => {
+      checkFirstBooking();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
