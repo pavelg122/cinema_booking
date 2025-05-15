@@ -32,6 +32,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     try {
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/payment-success`,
+        },
         redirect: 'if_required',
       });
 
@@ -41,11 +44,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 
       if (paymentIntent.status === 'succeeded') {
         onSuccess(paymentIntent.id);
+      } else {
+        throw new Error('Payment not completed');
       }
     } catch (err) {
       console.error('Payment error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
-    } finally {
       setProcessing(false);
     }
   };
@@ -68,10 +72,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       >
         {processing ? (
           <div className="flex items-center justify-center">
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2" />
             Processing Payment...
           </div>
         ) : (
@@ -98,13 +99,11 @@ const CheckoutPage: React.FC = () => {
         throw new Error('Missing required information');
       }
 
-      setIsProcessing(true);
-
       // Create payment record
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
 
       // Create booking with payment reference
-      await api.createBooking(
+      const booking = await api.createBooking(
         user.id,
         screeningId,
         selectedSeats.map(seat => seat.id),
@@ -115,6 +114,7 @@ const CheckoutPage: React.FC = () => {
       // Navigate to success page
       navigate('/payment-success', {
         state: {
+          booking,
           screening,
           movie,
           selectedSeats,
