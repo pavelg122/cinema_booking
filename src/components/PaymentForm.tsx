@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { stripePromise } from '../lib/stripe';
+import { loadStripe } from '@stripe/stripe-js';
 import { AlertCircle } from 'lucide-react';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 interface PaymentFormProps {
   clientSecret: string;
@@ -14,10 +16,14 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
+  console.log('PaymentForm rendered with clientSecret:', clientSecret);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    console.log('Payment form submission started');
 
     if (!stripe || !elements || processing) {
+      console.log('Missing required elements:', { stripe: !!stripe, elements: !!elements, processing });
       return;
     }
 
@@ -25,18 +31,22 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     setError(null);
 
     try {
+      console.log('Confirming payment...');
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: window.location.origin + '/payment-success',
         },
+        redirect: 'if_required',
       });
 
       if (submitError) {
+        console.error('Payment confirmation error:', submitError);
         throw submitError;
       }
 
       if (paymentIntent?.status === 'succeeded') {
+        console.log('Payment succeeded:', paymentIntent);
         onSuccess(paymentIntent.id);
       }
     } catch (err) {
@@ -46,6 +56,15 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       setProcessing(false);
     }
   };
+
+  if (!stripe || !elements) {
+    console.log('Stripe or Elements not initialized');
+    return (
+      <div className="min-h-[300px] bg-secondary-700 rounded-lg p-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -57,7 +76,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
       )}
       
       <div className="min-h-[300px] bg-secondary-700 rounded-lg p-4">
-        <PaymentElement />
+        <PaymentElement 
+          options={{
+            layout: 'tabs',
+            defaultValues: {
+              billingDetails: {
+                name: 'John Doe',
+                email: 'john@example.com',
+              }
+            }
+          }}
+        />
       </div>
       
       <button
@@ -78,7 +107,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   );
 };
 
-export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
+export const StripePaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) => {
+  console.log('Initializing StripePaymentForm with clientSecret:', clientSecret);
+
   return (
     <Elements 
       stripe={stripePromise} 

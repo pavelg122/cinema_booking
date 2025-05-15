@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import StripePaymentForm from '../components/PaymentForm';
+import { StripePaymentForm } from '../components/PaymentForm';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -15,7 +15,24 @@ const CheckoutPage = () => {
   
   const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
+  console.log('CheckoutPage rendered with state:', {
+    screening,
+    movie,
+    selectedSeats,
+    totalPrice,
+    clientSecret,
+    screeningId
+  });
+
+  useEffect(() => {
+    if (!clientSecret) {
+      console.error('Missing clientSecret in location state');
+    }
+  }, [clientSecret]);
+
   const handlePaymentSuccess = useCallback(async (paymentIntentId: string) => {
+    console.log('Payment success callback triggered:', paymentIntentId);
+
     try {
       if (!user?.id || !screeningId || !selectedSeats) {
         console.error('Missing required information:', { userId: user?.id, screeningId, selectedSeats });
@@ -25,7 +42,10 @@ const CheckoutPage = () => {
       setIsProcessing(true);
       setError(null);
 
+      console.log('Creating payment record...');
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
+      
+      console.log('Creating booking record...');
       const booking = await api.createBooking(
         user.id,
         screeningId,
@@ -33,6 +53,8 @@ const CheckoutPage = () => {
         totalPrice,
         payment.id
       );
+
+      console.log('Booking created successfully:', booking);
 
       navigate('/payment-success', {
         state: {
