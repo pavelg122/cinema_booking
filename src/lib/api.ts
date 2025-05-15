@@ -166,7 +166,10 @@ export const api = {
   },
 
   // Bookings
-  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number, paymentMethod: string) {
+  async createBooking(userId: string, screeningId: string, seatIds: string[], totalPrice: number) {
+    // Generate a temporary payment ID
+    const paymentId = `temp_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+
     // Start a transaction
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -176,7 +179,8 @@ export const api = {
         total_price: totalPrice,
         status: 'pending',
         booking_date: new Date().toISOString(),
-        payment_method: paymentMethod
+        payment_method: 'credit_card',
+        payment_id: paymentId
       })
       .select()
       .single();
