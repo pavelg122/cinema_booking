@@ -46,7 +46,6 @@ const SeatSelectionPage: React.FC = () => {
       try {
         if (!screeningId) return;
 
-        // Fetch screening details and seats in parallel
         const [screeningData, seatsData] = await Promise.all([
           api.getScreening(screeningId),
           api.getSeatsForScreening(screeningId)
@@ -65,22 +64,18 @@ const SeatSelectionPage: React.FC = () => {
     fetchData();
   }, [screeningId]);
   
-  // Handle seat selection
   const handleSeatClick = (row: string, number: number, status: string, price: number, seatId: string) => {
     if (status === 'occupied') return;
     
-    // Check if seat is already selected
     const existingIndex = selectedSeats.findIndex(
       seat => seat.row === row && seat.number === number
     );
     
     if (existingIndex > -1) {
-      // Remove seat from selection
       const updatedSeats = [...selectedSeats];
       updatedSeats.splice(existingIndex, 1);
       setSelectedSeats(updatedSeats);
       
-      // Update seat map status
       const updatedSeatMap = [...seatMap];
       const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
       if (rowIndex > -1) {
@@ -93,10 +88,8 @@ const SeatSelectionPage: React.FC = () => {
       }
       setSeatMap(updatedSeatMap);
       
-      // Update total price
       setTotalPrice(prevPrice => prevPrice - price);
     } else {
-      // Add seat to selection
       const newSeat: Seat = {
         id: seatId,
         row,
@@ -104,7 +97,6 @@ const SeatSelectionPage: React.FC = () => {
       };
       setSelectedSeats([...selectedSeats, newSeat]);
       
-      // Update seat map status
       const updatedSeatMap = [...seatMap];
       const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
       if (rowIndex > -1) {
@@ -117,23 +109,19 @@ const SeatSelectionPage: React.FC = () => {
       }
       setSeatMap(updatedSeatMap);
       
-      // Update total price
       setTotalPrice(prevPrice => prevPrice + price);
     }
   };
   
-  // Handle proceed to checkout
   const handleProceedToCheckout = async () => {
     if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) return;
     
     setIsProcessing(true);
     
     try {
-      // Initialize Stripe payment
       const stripe = await stripePromise;
       if (!stripe) throw new Error('Failed to load Stripe');
 
-      // Create payment intent
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
@@ -144,7 +132,6 @@ const SeatSelectionPage: React.FC = () => {
 
       const { clientSecret } = await response.json();
 
-      // Confirm payment with Stripe
       const result = await stripe.confirmCardPayment(clientSecret);
 
       if (result.error) {
@@ -152,14 +139,12 @@ const SeatSelectionPage: React.FC = () => {
       }
 
       if (result.paymentIntent.status === 'succeeded') {
-        // Create payment record
         const payment = await api.createPayment(
           user.id,
           totalPrice,
           result.paymentIntent.id
         );
 
-        // Create booking with payment reference
         const booking = await api.createBooking(
           user.id,
           screeningId,
@@ -168,8 +153,7 @@ const SeatSelectionPage: React.FC = () => {
           payment.id
         );
 
-        // Navigate to success page
-        navigate(`/payment-success`, {
+        navigate('/payment-success', {
           state: {
             booking,
             screening,
@@ -233,7 +217,6 @@ const SeatSelectionPage: React.FC = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          {/* Seat legend */}
           <div className="bg-secondary-800 rounded-lg p-4 mb-6">
             <div className="flex flex-wrap gap-4 justify-center">
               <div className="flex items-center">
@@ -255,13 +238,11 @@ const SeatSelectionPage: React.FC = () => {
             </div>
           </div>
           
-          {/* Screen */}
           <div className="mb-8">
             <div className="h-6 bg-primary-800/30 rounded-t-full mx-auto w-4/5 mb-1"></div>
             <div className="text-center text-secondary-400 text-sm">SCREEN</div>
           </div>
           
-          {/* Seat map */}
           <div className="overflow-x-auto pb-4">
             <div className="flex flex-col items-center min-w-fit">
               {seatMap.map((row) => (
@@ -293,7 +274,6 @@ const SeatSelectionPage: React.FC = () => {
         </div>
         
         <div className="lg:col-span-1">
-          {/* Booking summary */}
           <div className="bg-secondary-800 rounded-lg p-6 sticky top-24">
             <h2 className="text-xl font-semibold text-white mb-4">Booking Summary</h2>
             
@@ -354,7 +334,7 @@ const SeatSelectionPage: React.FC = () => {
                   Processing...
                 </div>
               ) : (
-                'Proceed to Checkout'
+                'Proceed to Payment'
               )}
             </button>
             

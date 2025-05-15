@@ -108,7 +108,6 @@ export const api = {
 
   // Seats
   async getSeatsForScreening(screeningId: string) {
-    // First get the screening to get the hall_id
     const { data: screening, error: screeningError } = await supabase
       .from('screenings')
       .select('hall_id')
@@ -117,7 +116,6 @@ export const api = {
     
     if (screeningError) throw screeningError;
 
-    // Get all seat rows and seats for the hall
     const { data: seatRows, error: seatRowsError } = await supabase
       .from('seat_rows')
       .select(`
@@ -129,7 +127,6 @@ export const api = {
     
     if (seatRowsError) throw seatRowsError;
 
-    // Get all bookings for this screening
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('id')
@@ -138,7 +135,6 @@ export const api = {
 
     if (bookingsError) throw bookingsError;
 
-    // If there are bookings, get all booked seats
     let bookedSeatIds: Set<string> = new Set();
     
     if (bookings && bookings.length > 0) {
@@ -152,7 +148,6 @@ export const api = {
       bookedSeatIds = new Set(bookedSeats?.map(bs => bs.seat_id) || []);
     }
 
-    // Transform the data into the expected format
     return seatRows?.map(row => ({
       row: row.row_letter,
       seats: row.seats.map(seat => ({
@@ -194,7 +189,6 @@ export const api = {
     paymentId: string
   ) {
     try {
-      // Create booking with payment reference
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -202,9 +196,8 @@ export const api = {
           screening_id: screeningId,
           total_price: totalPrice,
           status: 'confirmed',
-          booking_date: new Date().toISOString(),
           payment_id: paymentId,
-          payment_method: 'credit_card'
+          booking_date: new Date().toISOString()
         })
         .select()
         .single();
@@ -218,7 +211,6 @@ export const api = {
         throw new Error('No booking returned after creation');
       }
 
-      // Insert booked seats
       const bookedSeats = seatIds.map(seatId => ({
         booking_id: booking.id,
         seat_id: seatId
@@ -229,7 +221,6 @@ export const api = {
         .insert(bookedSeats);
 
       if (seatsError) {
-        // If there's an error inserting seats, delete the booking
         await supabase
           .from('bookings')
           .delete()
