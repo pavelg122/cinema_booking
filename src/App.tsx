@@ -21,10 +21,13 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
 import NotFoundPage from './pages/NotFoundPage';
+import { Elements } from '@stripe/react-stripe-js';
+import { stripePromise } from './lib/stripe';
 
 function App() {
   return (
     <AuthProvider>
+     <Elements stripe={stripePromise}>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
@@ -56,6 +59,7 @@ function App() {
         {/* 404 Route */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+     </Elements>
     </AuthProvider>
   );
 }
