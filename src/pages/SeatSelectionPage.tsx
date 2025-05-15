@@ -40,7 +40,7 @@ const SeatSelectionPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [reservationId, setReservationId] = useState<string | null>(null);
+  const [seatReservations, setSeatReservations] = useState<Record<string, string>>({});
   
   useEffect(() => {
     const fetchData = async () => {
@@ -64,31 +64,36 @@ const SeatSelectionPage: React.FC = () => {
 
     fetchData();
 
-    // Cleanup reservation on unmount
+    // Cleanup reservations on unmount
     return () => {
-      if (reservationId) {
+      Object.values(seatReservations).forEach(reservationId => {
         api.cancelSeatReservation(reservationId).catch(console.error);
-      }
+      });
     };
   }, [screeningId]);
 
-  // Update seat reservation periodically
+  // Update seat reservations periodically
   useEffect(() => {
-    if (!reservationId) return;
+    if (Object.keys(seatReservations).length === 0) return;
 
     const interval = setInterval(async () => {
       try {
-        await api.updateSeatReservation(reservationId);
+        await Promise.all(
+          Object.entries(seatReservations).map(([seatId, reservationId]) =>
+            api.updateSeatReservation(reservationId)
+          )
+        );
       } catch (err) {
-        console.error('Error updating seat reservation:', err);
-        setError('Your seat reservation has expired. Please try again.');
+        console.error('Error updating seat reservations:', err);
+        setError('Your seat reservations have expired. Please try again.');
         setSelectedSeats([]);
+        setSeatReservations({});
         setTotalPrice(0);
       }
     }, SEAT_HOLD_TIME / 2);
 
     return () => clearInterval(interval);
-  }, [reservationId]);
+  }, [seatReservations]);
 
   // Refresh seat map periodically to show latest availability
   useEffect(() => {
@@ -107,6 +112,8 @@ const SeatSelectionPage: React.FC = () => {
   }, [screeningId]);
   
   const handleSeatClick = async (row: string, number: number, status: string, price: number, seatId: string) => {
+    if (!screeningId) return;
+    
     setError(null);
     
     if (status === 'occupied' || status === 'reserved') {
@@ -138,10 +145,13 @@ const SeatSelectionPage: React.FC = () => {
         setSeatMap(updatedSeatMap);
         setTotalPrice(prevPrice => prevPrice - price);
 
-        // Update reservation if needed
-        if (reservationId && selectedSeats.length === 1) {
+        // Cancel reservation for this seat
+        const reservationId = seatReservations[seatId];
+        if (reservationId) {
           await api.cancelSeatReservation(reservationId);
-          setReservationId(null);
+          const updatedReservations = { ...seatReservations };
+          delete updatedReservations[seatId];
+          setSeatReservations(updatedReservations);
         }
       } else {
         // Check seat limit
@@ -157,8 +167,6 @@ const SeatSelectionPage: React.FC = () => {
 
         if (!currentSeat || currentSeat.status !== 'available') {
           setError('This seat is no longer available');
-          
-          // Refresh the seat map to show latest availability
           setSeatMap(currentSeatMap);
           return;
         }
@@ -171,11 +179,14 @@ const SeatSelectionPage: React.FC = () => {
         };
         
         try {
-          // Create or update reservation
-          const newReservationId = await api.reserveSeats(screeningId, [...selectedSeats, newSeat]);
-          setReservationId(newReservationId);
-
+          // Reserve only the new seat
+          const reservationId = await api.reserveSeats(screeningId, [newSeat]);
+          
           setSelectedSeats([...selectedSeats, newSeat]);
+          setSeatReservations(prev => ({
+            ...prev,
+            [seatId]: reservationId
+          }));
           
           const updatedSeatMap = [...seatMap];
           const rowIndex = updatedSeatMap.findIndex(r => r.row === row);
@@ -228,7 +239,7 @@ const SeatSelectionPage: React.FC = () => {
           amount: totalPrice,
           screeningId,
           seatIds: selectedSeats.map(seat => seat.id),
-          reservationId
+          reservationIds: Object.values(seatReservations)
         }),
       });
 
@@ -246,7 +257,7 @@ const SeatSelectionPage: React.FC = () => {
           totalPrice,
           clientSecret,
           screeningId,
-          reservationId
+          reservationIds: Object.values(seatReservations)
         },
       });
     } catch (err) {
