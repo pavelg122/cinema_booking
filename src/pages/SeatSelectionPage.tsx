@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
+import { supabase } from '../lib/supabase';
 
 type Screening = Database['public']['Tables']['screenings']['Row'] & {
   movies: Database['public']['Tables']['movies']['Row'];
@@ -126,7 +127,34 @@ const SeatSelectionPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      // Create booking in database with default payment method
+      // First check if the user exists in the public.users table
+      const { data: existingUser, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError || !existingUser) {
+        // If user doesn't exist in public.users table, create them
+        const { data: authUser } = await supabase.auth.getUser();
+        if (!authUser.user) throw new Error('No authenticated user found');
+
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            email: authUser.user.email!,
+            name: authUser.user.email!.split('@')[0], // Use email username as default name
+            role: 'user',
+            password_hash: 'MANAGED_BY_SUPABASE_AUTH' // Placeholder as we use Supabase Auth
+          });
+
+        if (insertError) {
+          throw new Error('Failed to create user profile');
+        }
+      }
+
+      // Now create the booking
       const booking = await api.createBooking(
         user.id,
         screeningId,
