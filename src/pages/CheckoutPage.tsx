@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { StripePaymentForm } from '../components/PaymentForm';
+import CheckoutForm from '../components/CheckoutForm';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
@@ -15,37 +15,16 @@ const CheckoutPage = () => {
   
   const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
-  console.log('CheckoutPage rendered with state:', {
-    screening,
-    movie,
-    selectedSeats,
-    totalPrice,
-    clientSecret,
-    screeningId
-  });
-
-  useEffect(() => {
-    if (!clientSecret) {
-      console.error('Missing clientSecret in location state');
-    }
-  }, [clientSecret]);
-
   const handlePaymentSuccess = useCallback(async (paymentIntentId: string) => {
-    console.log('Payment success callback triggered:', paymentIntentId);
+    if (!user?.id || !screeningId || !selectedSeats || isProcessing) {
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
 
     try {
-      if (!user?.id || !screeningId || !selectedSeats) {
-        console.error('Missing required information:', { userId: user?.id, screeningId, selectedSeats });
-        throw new Error('Missing required booking information');
-      }
-
-      setIsProcessing(true);
-      setError(null);
-
-      console.log('Creating payment record...');
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
-      
-      console.log('Creating booking record...');
       const booking = await api.createBooking(
         user.id,
         screeningId,
@@ -53,8 +32,6 @@ const CheckoutPage = () => {
         totalPrice,
         payment.id
       );
-
-      console.log('Booking created successfully:', booking);
 
       navigate('/payment-success', {
         state: {
@@ -66,15 +43,13 @@ const CheckoutPage = () => {
         }
       });
     } catch (err) {
-      console.error('Error creating booking:', err);
       setError('Failed to complete booking. Please try again.');
     } finally {
       setIsProcessing(false);
     }
-  }, [user?.id, screeningId, selectedSeats, totalPrice, navigate, screening, movie]);
+  }, [user?.id, screeningId, selectedSeats, totalPrice, navigate, screening, movie, isProcessing]);
   
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
-    console.error('Missing required checkout information:', { screening, movie, selectedSeats, totalPrice, clientSecret });
     navigate('/movies');
     return null;
   }
@@ -104,7 +79,8 @@ const CheckoutPage = () => {
               </div>
             )}
             
-            <StripePaymentForm 
+            <CheckoutForm 
+              key={clientSecret}
               clientSecret={clientSecret}
               onSuccess={handlePaymentSuccess}
             />
@@ -158,4 +134,4 @@ const CheckoutPage = () => {
   );
 };
 
-export default React.memo(CheckoutPage);
+export default CheckoutPage;
