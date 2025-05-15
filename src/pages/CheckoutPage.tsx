@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { StripePaymentForm } from '../components/PaymentForm';
+import StripePaymentForm from '../components/PaymentForm';
 
-const CheckoutPage: React.FC = () => {
+const CheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -13,13 +13,9 @@ const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId, reservationIds } = location.state || {};
+  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
-  console.log('Checkout page state:', { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId, reservationIds });
-
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
-    console.log('Payment success callback with ID:', paymentIntentId);
-    
+  const handlePaymentSuccess = useCallback(async (paymentIntentId: string) => {
     try {
       if (!user?.id || !screeningId || !selectedSeats) {
         console.error('Missing required information:', { userId: user?.id, screeningId, selectedSeats });
@@ -29,11 +25,7 @@ const CheckoutPage: React.FC = () => {
       setIsProcessing(true);
       setError(null);
 
-      console.log('Creating payment record...');
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
-      console.log('Payment record created:', payment);
-
-      console.log('Creating booking...');
       const booking = await api.createBooking(
         user.id,
         screeningId,
@@ -41,7 +33,6 @@ const CheckoutPage: React.FC = () => {
         totalPrice,
         payment.id
       );
-      console.log('Booking created:', booking);
 
       navigate('/payment-success', {
         state: {
@@ -55,9 +46,10 @@ const CheckoutPage: React.FC = () => {
     } catch (err) {
       console.error('Error creating booking:', err);
       setError('Failed to complete booking. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
-  };
+  }, [user?.id, screeningId, selectedSeats, totalPrice, navigate, screening, movie]);
   
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
     console.error('Missing required checkout information:', { screening, movie, selectedSeats, totalPrice, clientSecret });
@@ -144,4 +136,4 @@ const CheckoutPage: React.FC = () => {
   );
 };
 
-export default CheckoutPage;
+export default React.memo(CheckoutPage);

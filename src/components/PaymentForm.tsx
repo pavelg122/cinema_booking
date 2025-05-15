@@ -27,7 +27,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
     try {
       const { error: submitError, paymentIntent } = await stripe.confirmPayment({
         elements,
-        redirect: 'if_required',
+        confirmParams: {
+          return_url: window.location.origin + '/payment-success',
+        },
       });
 
       if (submitError) {
@@ -54,7 +56,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         </div>
       )}
       
-      <PaymentElement />
+      <div className="min-h-[300px] bg-secondary-700 rounded-lg p-4">
+        <PaymentElement />
+      </div>
       
       <button
         type="submit"
@@ -87,8 +91,8 @@ export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (pay
             colorBackground: '#1f2937',
             colorText: '#ffffff',
             fontFamily: 'Inter, system-ui, sans-serif',
-          }
-        }
+          },
+        },
       }}
     >
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
