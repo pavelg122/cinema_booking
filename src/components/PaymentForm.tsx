@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise } from '../lib/stripe';
 import { AlertCircle } from 'lucide-react';
@@ -82,22 +82,24 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
   console.log('Rendering StripePaymentForm with clientSecret:', clientSecret);
 
+  const options = useMemo(() => ({
+    clientSecret,
+    appearance: {
+      theme: 'night',
+      variables: {
+        colorPrimary: '#ef4444',
+        colorBackground: '#1f2937',
+        colorText: '#ffffff',
+        colorDanger: '#ef4444',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      },
+    },
+  }), [clientSecret]);
+
   return (
     <Elements 
       stripe={stripePromise} 
-      options={{
-        clientSecret,
-        appearance: {
-          theme: 'night',
-          variables: {
-            colorPrimary: '#ef4444',
-            colorBackground: '#1f2937',
-            colorText: '#ffffff',
-            colorDanger: '#ef4444',
-            fontFamily: 'Inter, system-ui, sans-serif',
-          },
-        },
-      }}
+      options={options}
     >
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
     </Elements>
