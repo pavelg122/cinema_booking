@@ -39,27 +39,16 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 
     try {
       console.log('Confirming payment...');
-      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
+      const { error: submitError } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/payment-success`,
         },
       });
 
-      console.log('Payment confirmation response:', { submitError, paymentIntent });
-
-      if (submitError) {
-        console.error('Payment confirmation error:', submitError);
-        throw submitError;
-      }
-
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        console.log('Payment succeeded:', paymentIntent);
-        onSuccess(paymentIntent.id);
-      } else {
-        console.error('Payment did not succeed:', paymentIntent);
-        throw new Error('Payment failed. Please try again.');
-      }
+      // If we get here, there was an immediate error
+      console.error('Payment confirmation error:', submitError);
+      throw submitError || new Error('Payment failed');
     } catch (err) {
       console.error('Payment error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
@@ -134,7 +123,6 @@ const CheckoutPage: React.FC = () => {
       );
       console.log('Booking created:', booking);
 
-      // Navigate to success page
       navigate('/payment-success', {
         state: {
           booking,
@@ -152,10 +140,24 @@ const CheckoutPage: React.FC = () => {
   };
   
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
-    console.error('Missing required checkout information');
+    console.error('Missing required checkout information:', { screening, movie, selectedSeats, totalPrice, clientSecret });
     navigate('/movies');
     return null;
   }
+
+  const options = {
+    clientSecret,
+    appearance: {
+      theme: 'night',
+      variables: {
+        colorPrimary: '#ef4444',
+        colorBackground: '#18181b',
+        colorText: '#ffffff',
+        colorDanger: '#ef4444',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      },
+    },
+  };
 
   return (
     <div className="section">
@@ -182,7 +184,7 @@ const CheckoutPage: React.FC = () => {
               </div>
             )}
             
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
+            <Elements stripe={stripePromise} options={options}>
               <PaymentForm 
                 clientSecret={clientSecret}
                 onSuccess={handlePaymentSuccess}
