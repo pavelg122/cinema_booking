@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-import { CreditCard, Ticket, Clock, ArrowLeft, CheckCircle } from 'lucide-react';
+import { CreditCard, Ticket, Clock, ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,23 +22,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!stripe || !elements || processing) {
       return;
     }
 
     setProcessing(true);
     setError(null);
 
-    const { error: submitError, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      redirect: 'if_required',
-    });
+    try {
+      const { error: submitError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
 
-    if (submitError) {
-      setError(submitError.message || 'An error occurred while processing your payment.');
+      if (submitError) {
+        throw submitError;
+      }
+
+      if (paymentIntent.status === 'succeeded') {
+        onSuccess(paymentIntent.id);
+      }
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while processing your payment.');
+    } finally {
       setProcessing(false);
-    } else if (paymentIntent.status === 'succeeded') {
-      onSuccess(paymentIntent.id);
     }
   };
 
@@ -75,7 +83,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 };
 
 const CheckoutPage: React.FC = () => {
-  const { screeningId } = useParams<{ screeningId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -83,7 +90,7 @@ const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { screening, movie, selectedSeats, totalPrice, clientSecret } = location.state || {};
+  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {

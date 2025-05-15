@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { loadStripe } from '@stripe/stripe-js';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
 
@@ -25,8 +24,6 @@ interface SeatRow {
   row: string;
   seats: SeatType[];
 }
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const SeatSelectionPage: React.FC = () => {
   const { screeningId } = useParams<{ screeningId: string }>();
@@ -122,7 +119,6 @@ const SeatSelectionPage: React.FC = () => {
     setError(null);
 
     try {
-      // Create payment intent
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
         method: 'POST',
         headers: {
@@ -138,14 +134,14 @@ const SeatSelectionPage: React.FC = () => {
 
       const { clientSecret } = await response.json();
 
-      // Navigate to checkout with payment details
-      navigate(`/checkout/${screeningId}`, {
+      navigate('/checkout', {
         state: {
           screening,
           movie: screening?.movies,
           selectedSeats,
           totalPrice,
           clientSecret,
+          screeningId,
         },
       });
     } catch (err) {
@@ -262,22 +258,19 @@ const SeatSelectionPage: React.FC = () => {
           <div className="bg-secondary-800 rounded-lg p-6 sticky top-24">
             <h2 className="text-xl font-semibold text-white mb-4">Booking Summary</h2>
             
-            <div className="mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Movie:</span>
-                <span className="text-white font-medium">{screening.movies.title}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Date:</span>
-                <span className="text-white">{screening.screening_date}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Time:</span>
-                <span className="text-white">{screening.start_time} - {screening.end_time}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Cinema:</span>
-                <span className="text-white">{screening.halls.name}</span>
+            <div className="flex items-start mb-4">
+              <img
+                src={screening.movies.poster_url}
+                alt={screening.movies.title}
+                className="w-20 h-auto rounded-md mr-4"
+              />
+              <div>
+                <h3 className="font-medium text-white mb-1">{screening.movies.title}</h3>
+                <div className="text-sm text-secondary-300">
+                  <div>{screening.screening_date}</div>
+                  <div>{screening.start_time} - {screening.end_time}</div>
+                  <div>{screening.halls.name}</div>
+                </div>
               </div>
             </div>
             
@@ -329,7 +322,7 @@ const SeatSelectionPage: React.FC = () => {
               )}
             </button>
             
-            <div className="mt-4 flex items-start text-xs text-secondary-400">
+            <div className="mt-6 flex items-start text-xs text-secondary-400">
               <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
               <p>You can select up to 10 seats per booking. Your seats will be held for 10 minutes to complete the payment.</p>
             </div>
