@@ -1,11 +1,24 @@
 import { loadStripe } from '@stripe/stripe-js';
 
+const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+console.log('Initializing Stripe with publishable key:', !!publishableKey);
+
+if (!publishableKey) {
+  console.error('Missing Stripe publishable key!');
+}
+
 // Initialize Stripe
-export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+export const stripePromise = loadStripe(publishableKey!);
+
+stripePromise.then(
+  stripe => console.log('Stripe loaded successfully:', !!stripe),
+  error => console.error('Failed to load Stripe:', error)
+);
 
 // Create payment intent
 export const createPaymentIntent = async (amount: number) => {
   try {
+    console.log('Creating payment intent for amount:', amount);
     const response = await fetch('/api/create-payment-intent', {
       method: 'POST',
       headers: {
@@ -14,7 +27,15 @@ export const createPaymentIntent = async (amount: number) => {
       body: JSON.stringify({ amount }),
     });
     
-    return await response.json();
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Payment intent creation failed:', errorData);
+      throw new Error(errorData.error || 'Failed to create payment intent');
+    }
+
+    const data = await response.json();
+    console.log('Payment intent created successfully:', !!data.clientSecret);
+    return data;
   } catch (error) {
     console.error('Error creating payment intent:', error);
     throw error;

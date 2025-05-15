@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise, stripeElementsOptions } from '../lib/stripe';
 import { AlertCircle } from 'lucide-react';
@@ -13,6 +13,10 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    console.log('PaymentForm mounted with stripe:', !!stripe, 'elements:', !!elements);
+  }, [stripe, elements]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -48,6 +52,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
         console.log('Payment succeeded:', result.paymentIntent.id);
         onSuccess(result.paymentIntent.id);
       } else {
+        console.error('Payment not successful:', result.paymentIntent?.status);
         throw new Error('Payment was not successful');
       }
     } catch (err) {
@@ -89,6 +94,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ clientSecret, onSuccess }) =>
 };
 
 export const StripePaymentForm: React.FC<{ clientSecret: string; onSuccess: (paymentIntentId: string) => void }> = ({ clientSecret, onSuccess }) => {
+  console.log('StripePaymentForm rendering with clientSecret:', !!clientSecret);
+  console.log('Stripe Elements options:', stripeElementsOptions);
+
+  useEffect(() => {
+    console.log('StripePaymentForm mounted');
+    return () => console.log('StripePaymentForm unmounted');
+  }, []);
+
+  if (!clientSecret) {
+    console.error('No client secret provided to StripePaymentForm');
+    return null;
+  }
+
   return (
     <Elements stripe={stripePromise} options={{ ...stripeElementsOptions, clientSecret }}>
       <PaymentForm clientSecret={clientSecret} onSuccess={onSuccess} />
