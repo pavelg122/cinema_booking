@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
+import { createEmbeddedCheckoutSession } from '../lib/stripe';
 
 type Screening = Database['public']['Tables']['screenings']['Row'] & {
   movies: Database['public']['Tables']['movies']['Row'];
@@ -229,26 +230,14 @@ const SeatSelectionPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ 
-          amount: totalPrice,
-          screeningId,
-          seatIds: selectedSeats.map(seat => seat.id),
-          reservationIds: Object.values(seatReservations)
-        }),
+      const { clientSecret } = await createEmbeddedCheckoutSession({
+        amount: totalPrice,
+        screeningId,
+        seatIds: selectedSeats.map(seat => seat.id),
+        reservationIds: Object.values(seatReservations),
+        movieTitle: screening?.movies?.title || '',
+        returnUrl: `${window.location.origin}/payment-success`,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create payment intent');
-      }
-
-      const { clientSecret } = await response.json();
 
       navigate('/checkout', {
         state: {
