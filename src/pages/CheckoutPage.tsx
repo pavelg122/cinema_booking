@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
@@ -15,40 +15,50 @@ const CheckoutPage = () => {
   
   const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
 
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
-    if (!user?.id || !screeningId || !selectedSeats || isProcessing) {
-      return;
-    }
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
-      const booking = await api.createBooking(
-        user.id,
-        screeningId,
-        selectedSeats.map(seat => seat.id),
-        totalPrice,
-        payment.id
-      );
-
-      navigate('/payment-success', {
-        state: {
-          booking,
-          screening,
-          movie,
-          selectedSeats,
-          totalPrice
+  useEffect(() => {
+    // Listen for the payment success event from the embedded form
+    const handlePaymentSuccess = async (event: MessageEvent) => {
+      if (event.data.type === 'embedded-checkout:completed') {
+        const { paymentIntent } = event.data;
+        
+        if (!user?.id || !screeningId || !selectedSeats || isProcessing) {
+          return;
         }
-      });
-    } catch (err) {
-      setError('Failed to complete booking. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
+
+        setIsProcessing(true);
+        setError(null);
+
+        try {
+          const payment = await api.createPayment(user.id, totalPrice, paymentIntent.id);
+          const booking = await api.createBooking(
+            user.id,
+            screeningId,
+            selectedSeats.map(seat => seat.id),
+            totalPrice,
+            payment.id
+          );
+
+          navigate('/payment-success', {
+            state: {
+              booking,
+              screening,
+              movie,
+              selectedSeats,
+              totalPrice
+            }
+          });
+        } catch (err) {
+          setError('Failed to complete booking. Please try again.');
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    };
+
+    window.addEventListener('message', handlePaymentSuccess);
+    return () => window.removeEventListener('message', handlePaymentSuccess);
+  }, [user?.id, screeningId, selectedSeats, totalPrice, isProcessing, navigate, screening, movie]);
+
   if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
     navigate('/movies');
     return null;
@@ -81,7 +91,7 @@ const CheckoutPage = () => {
             
             <CheckoutForm 
               clientSecret={clientSecret}
-              onSuccess={handlePaymentSuccess}
+              onSuccess={() => {}} // This is now handled by the message event listener
             />
           </div>
         </div>
