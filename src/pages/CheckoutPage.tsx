@@ -4,7 +4,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import CheckoutForm from '../components/CheckoutForm';
-
+console.log('Stripe key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,7 +24,6 @@ const CheckoutPage = () => {
     setError(null);
 
     try {
-      console.log('Stripe key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
       const booking = await api.createBooking(
         user.id,
