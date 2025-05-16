@@ -191,16 +191,32 @@ export const api = {
   },
 
   // Payments
-  async createPayment(userId: string, amount: number, paymentIntentId: string): Promise<Payment> {
+  async createPayment(userId: string, amount: number, paymentIntentId: string | null, status: string = 'completed'): Promise<Payment> {
     const { data, error } = await supabase
       .from('payments')
       .insert({
         user_id: userId,
         amount,
-        status: 'completed',
+        status,
         provider: 'stripe',
         provider_payment_id: paymentIntentId
       })
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) throw new Error('No payment data returned');
+    return data;
+  },
+
+  async updatePayment(paymentId: string, paymentIntentId: string, status: string = 'completed'): Promise<Payment> {
+    const { data, error } = await supabase
+      .from('payments')
+      .update({
+        status,
+        provider_payment_id: paymentIntentId
+      })
+      .eq('id', paymentId)
       .select()
       .single();
 
@@ -224,7 +240,7 @@ export const api = {
           user_id: userId,
           screening_id: screeningId,
           total_price: totalPrice,
-          status: 'confirmed',
+          status: 'pending',
           payment_id: paymentId,
           booking_date: new Date().toISOString()
         })
@@ -262,6 +278,18 @@ export const api = {
       console.error('Transaction error:', error);
       throw error;
     }
+  },
+
+  async updateBookingStatus(bookingId: string, status: string) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', bookingId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
   async getUserBookings(userId: string) {

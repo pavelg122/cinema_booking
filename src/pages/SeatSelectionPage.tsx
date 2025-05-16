@@ -5,7 +5,6 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
-import { createEmbeddedCheckoutSession } from '../lib/stripe';
 
 type Screening = Database['public']['Tables']['screenings']['Row'] & {
   movies: Database['public']['Tables']['movies']['Row'];
@@ -42,7 +41,7 @@ const SeatSelectionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [seatReservations, setSeatReservations] = useState<Record<string, string>>({});
-  
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -111,7 +110,7 @@ const SeatSelectionPage: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [screeningId]);
-  
+
   const handleSeatClick = async (row: string, number: number, status: string, price: number, seatId: string) => {
     if (!screeningId) return;
     
@@ -220,8 +219,8 @@ const SeatSelectionPage: React.FC = () => {
       setSeatMap(updatedSeatMap);
     }
   };
-  
-  const handleProceedToCheckout = async () => {
+
+  const handleCreateBooking = async () => {
     if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) {
       return;
     }
@@ -230,33 +229,32 @@ const SeatSelectionPage: React.FC = () => {
     setError(null);
 
     try {
-      const { clientSecret } = await createEmbeddedCheckoutSession({
-        amount: totalPrice,
+      // Create a pending payment
+      const payment = await api.createPayment(user.id, totalPrice, null, 'pending');
+      
+      // Create the booking with pending status
+      const booking = await api.createBooking(
+        user.id,
         screeningId,
-        seatIds: selectedSeats.map(seat => seat.id),
-        reservationIds: Object.values(seatReservations),
-        movieTitle: screening?.movies?.title || '',
-        returnUrl: `${window.location.origin}/payment-success`,
-      });
+        selectedSeats.map(seat => seat.id),
+        totalPrice,
+        payment.id
+      );
 
-      navigate('/checkout', {
+      navigate('/bookings', {
         state: {
-          screening,
-          movie: screening?.movies,
-          selectedSeats,
-          totalPrice,
-          clientSecret,
-          screeningId,
-          reservationIds: Object.values(seatReservations)
-        },
+          newBooking: true,
+          message: 'Booking created successfully! Please complete your payment.'
+        }
       });
     } catch (err) {
-      console.error('Error initiating payment:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initiate payment');
+      console.error('Error creating booking:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create booking');
+    } finally {
       setIsProcessing(false);
     }
   };
-  
+
   if (loading) {
     return (
       <div className="section flex items-center justify-center min-h-[50vh]">
@@ -264,7 +262,7 @@ const SeatSelectionPage: React.FC = () => {
       </div>
     );
   }
-  
+
   if (error || !screening) {
     return (
       <div className="section flex flex-col items-center justify-center">
@@ -407,7 +405,7 @@ const SeatSelectionPage: React.FC = () => {
             )}
             
             <button
-              onClick={handleProceedToCheckout}
+              onClick={handleCreateBooking}
               disabled={selectedSeats.length === 0 || isProcessing}
               className={`w-full btn ${
                 selectedSeats.length > 0 && !isProcessing
@@ -424,7 +422,7 @@ const SeatSelectionPage: React.FC = () => {
                   Processing...
                 </div>
               ) : (
-                'Proceed to Payment'
+                'Create Booking'
               )}
             </button>
             
