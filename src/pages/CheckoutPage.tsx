@@ -24,6 +24,7 @@ const CheckoutPage = () => {
     setError(null);
 
     try {
+      console.log('Stripe key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
       const payment = await api.createPayment(user.id, totalPrice, paymentIntentId);
       const booking = await api.createBooking(
         user.id,
