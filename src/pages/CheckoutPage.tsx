@@ -70,9 +70,9 @@ const CheckoutPage = () => {
         <p className="text-secondary-300">Complete your booking by providing payment details.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="bg-secondary-800 rounded-lg p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full">
+        <div className="lg:col-span-2 w-full">
+          <div className="bg-secondary-800 rounded-lg p-6 w-full">
             {error && (
               <div className="mb-6 bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md flex items-start">
                 <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
