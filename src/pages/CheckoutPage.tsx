@@ -80,7 +80,6 @@ const CheckoutPage = () => {
             )}
             
             <CheckoutForm 
-              key={clientSecret}
               clientSecret={clientSecret}
               onSuccess={handlePaymentSuccess}
             />
