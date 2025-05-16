@@ -54,7 +54,7 @@ const PaymentForm = ({ onSuccess }: PaymentFormProps) => {
         </div>
       )}
       
-      <div className="min-h-[300px] bg-secondary-700 rounded-lg p-4">
+      <div className="min-h-[300px] bg-secondary-700 rounded-lg p-4 w-full">
         <PaymentElement />
       </div>
       
