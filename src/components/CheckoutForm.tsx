@@ -18,15 +18,6 @@ const CheckoutForm = ({ clientSecret, onSuccess }: CheckoutFormProps) => {
 
   const options = {
     clientSecret: clientSecretState,
-    appearance: {
-      theme: 'night',
-      variables: {
-        colorPrimary: '#ef4444',
-        colorBackground: '#1f2937',
-        colorText: '#ffffff',
-        fontFamily: 'Inter, system-ui, sans-serif',
-      },
-    },
   };
 
   return (
