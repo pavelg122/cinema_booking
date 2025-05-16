@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
   const location = useLocation();
   
   // Get return URL from location state or default to home
-  const from = (location.state as any)?.from?.pathname || '/';
+  const from = location.state?.from?.pathname || '/';
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
