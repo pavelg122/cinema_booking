@@ -19,10 +19,16 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser).role === 'admin' : false;
+  });
 
   useEffect(() => {
     const initAuth = async () => {
@@ -31,6 +37,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (currentUser) {
           setUser(currentUser);
           setIsAdmin(currentUser.role === 'admin');
+          localStorage.setItem('user', JSON.stringify(currentUser));
+        } else {
+          localStorage.removeItem('user');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -49,6 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const user = await auth.login(email, password);
       setUser(user);
       setIsAdmin(user.role === 'admin');
+      localStorage.setItem('user', JSON.stringify(user));
     } catch (err) {
       setError((err as Error).message);
       throw err;
@@ -64,6 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const user = await auth.register(name, email, password);
       setUser(user);
       setIsAdmin(user.role === 'admin');
+      localStorage.setItem('user', JSON.stringify(user));
     } catch (err) {
       setError((err as Error).message);
       throw err;
@@ -75,6 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     setIsAdmin(false);
+    localStorage.removeItem('user');
   };
 
   return (
