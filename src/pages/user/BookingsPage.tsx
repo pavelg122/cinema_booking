@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Ticket, Calendar, Clock, MapPin, Download, ChevronRight, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Ticket, Calendar, Clock, MapPin, Download, ChevronRight, CreditCard, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { createEmbeddedCheckoutSession } from '../../lib/stripe';
 import type { Database } from '../../types/database.types';
 
 type Booking = Database['public']['Tables']['bookings']['Row'] & {
@@ -15,9 +16,12 @@ type Booking = Database['public']['Tables']['bookings']['Row'] & {
 
 const BookingsPage: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -36,26 +40,45 @@ const BookingsPage: React.FC = () => {
     fetchBookings();
   }, [user?.id]);
 
+  const handlePayment = async (booking: Booking) => {
+    if (!user?.id || processingPayment) return;
+
+    setProcessingPayment(booking.id);
+    setError(null);
+
+    try {
+      const { clientSecret } = await createEmbeddedCheckoutSession({
+        amount: booking.total_price,
+        screeningId: booking.screening_id,
+        seatIds: [], // We don't need this anymore since seats are already booked
+        reservationIds: [], // We don't need this anymore
+        movieTitle: booking.screenings.movies.title,
+        returnUrl: `${window.location.origin}/payment-success`,
+      });
+
+      navigate('/checkout', {
+        state: {
+          booking,
+          screening: booking.screenings,
+          movie: booking.screenings.movies,
+          totalPrice: booking.total_price,
+          clientSecret,
+          bookingId: booking.id,
+          paymentId: booking.payment_id,
+        },
+      });
+    } catch (err) {
+      console.error('Error initiating payment:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate payment');
+    } finally {
+      setProcessingPayment(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="section flex items-center justify-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="section flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <p className="text-red-500 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="btn btn-primary"
-          >
-            Try Again
-          </button>
-        </div>
       </div>
     );
   }
@@ -66,6 +89,20 @@ const BookingsPage: React.FC = () => {
         <h1 className="text-3xl font-bold text-white mb-2">My Bookings</h1>
         <p className="text-secondary-300">Manage your movie tickets and bookings</p>
       </div>
+
+      {location.state?.message && (
+        <div className="bg-green-900/30 border border-green-800 text-green-300 px-4 py-3 rounded-md mb-6 flex items-start">
+          <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <span>{location.state.message}</span>
+        </div>
+      )}
+      
+      {error && (
+        <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md mb-6 flex items-start">
+          <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
       
       {bookings.length > 0 ? (
         <div className="space-y-6">
@@ -75,7 +112,6 @@ const BookingsPage: React.FC = () => {
               className="bg-secondary-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <div className="md:flex">
-                {/* Movie Poster */}
                 <div className="md:w-1/4 lg:w-1/5">
                   <Link to={`/movies/${booking.screenings.movies.id}`}>
                     <img
@@ -86,7 +122,6 @@ const BookingsPage: React.FC = () => {
                   </Link>
                 </div>
                 
-                {/* Booking Details */}
                 <div className="p-6 md:w-3/4 lg:w-4/5">
                   <div className="flex flex-wrap justify-between items-start mb-4">
                     <div>
@@ -144,10 +179,30 @@ const BookingsPage: React.FC = () => {
                   </div>
                   
                   <div className="flex flex-wrap gap-3">
-                    <button className="btn btn-primary btn-sm flex items-center">
-                      <Download className="h-4 w-4 mr-1" />
-                      Download Ticket
-                    </button>
+                    {booking.status === 'pending' ? (
+                      <button
+                        onClick={() => handlePayment(booking)}
+                        disabled={processingPayment === booking.id}
+                        className="btn btn-primary btn-sm flex items-center"
+                      >
+                        {processingPayment === booking.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-1" />
+                            Complete Payment
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button className="btn btn-primary btn-sm flex items-center">
+                        <Download className="h-4 w-4 mr-1" />
+                        Download Ticket
+                      </button>
+                    )}
                     
                     <Link 
                       to={`/movies/${booking.screenings.movies.id}`} 
@@ -156,15 +211,6 @@ const BookingsPage: React.FC = () => {
                       Movie Details
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Link>
-                    
-                    <div className="flex ml-auto space-x-2">
-                      <button className="bg-secondary-700 hover:bg-green-700 text-white p-2 rounded-md transition-colors">
-                        <ThumbsUp className="h-4 w-4" />
-                      </button>
-                      <button className="bg-secondary-700 hover:bg-red-700 text-white p-2 rounded-md transition-colors">
-                        <ThumbsDown className="h-4 w-4" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
