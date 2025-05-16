@@ -8,8 +8,14 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
-    host: true, // Listen on all addresses
+    host: '0.0.0.0',
     port: 5173,
-    strictPort: true, // Fail if port is already in use
+    strictPort: true,
+    hmr: {
+      clientPort: 443
+    },
+    watch: {
+      usePolling: true
+    }
   },
 });
