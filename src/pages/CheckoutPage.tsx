@@ -1,10 +1,11 @@
+console.log('Stripe key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import CheckoutForm from '../components/CheckoutForm';
-console.log('Stripe key:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
