@@ -13,7 +13,7 @@ const CheckoutPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { screening, movie, selectedSeats, totalPrice, clientSecret, screeningId } = location.state || {};
+  const { booking, movie, screening, totalPrice, clientSecret, bookingId, paymentId } = location.state || {};
 
   useEffect(() => {
     // Listen for the payment success event from the embedded form
@@ -21,7 +21,7 @@ const CheckoutPage = () => {
       if (event.data.type === 'embedded-checkout:completed') {
         const { paymentIntent } = event.data;
         
-        if (!user?.id || !screeningId || !selectedSeats || isProcessing) {
+        if (!user?.id || !bookingId || !paymentId || isProcessing) {
           return;
         }
 
@@ -29,21 +29,17 @@ const CheckoutPage = () => {
         setError(null);
 
         try {
-          const payment = await api.createPayment(user.id, totalPrice, paymentIntent.id);
-          const booking = await api.createBooking(
-            user.id,
-            screeningId,
-            selectedSeats.map(seat => seat.id),
-            totalPrice,
-            payment.id
-          );
+          // Update payment status
+          await api.updatePayment(paymentId, paymentIntent.id);
+          
+          // Update booking status
+          await api.updateBookingStatus(bookingId, 'confirmed');
 
           navigate('/payment-success', {
             state: {
               booking,
               screening,
               movie,
-              selectedSeats,
               totalPrice
             }
           });
@@ -57,10 +53,10 @@ const CheckoutPage = () => {
 
     window.addEventListener('message', handlePaymentSuccess);
     return () => window.removeEventListener('message', handlePaymentSuccess);
-  }, [user?.id, screeningId, selectedSeats, totalPrice, isProcessing, navigate, screening, movie]);
+  }, [user?.id, bookingId, paymentId, isProcessing, navigate, booking, screening, movie, totalPrice]);
 
-  if (!screening || !movie || !selectedSeats || !totalPrice || !clientSecret) {
-    navigate('/movies');
+  if (!booking || !movie || !screening || !totalPrice || !clientSecret) {
+    navigate('/bookings');
     return null;
   }
 
@@ -75,8 +71,8 @@ const CheckoutPage = () => {
           Back
         </button>
         
-        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Checkout</h1>
-        <p className="text-secondary-300">Complete your booking by providing payment details.</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Complete Payment</h1>
+        <p className="text-secondary-300">Complete your payment to confirm your booking.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full">
@@ -98,7 +94,7 @@ const CheckoutPage = () => {
 
         <div className="lg:col-span-1">
           <div className="bg-secondary-800 rounded-lg p-6 sticky top-24">
-            <h2 className="text-xl font-semibold text-white mb-4">Order Summary</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">Booking Summary</h2>
             
             <div className="flex items-start mb-4">
               <img
@@ -118,12 +114,12 @@ const CheckoutPage = () => {
             
             <div className="border-t border-secondary-700 pt-4 mb-6">
               <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Tickets ({selectedSeats.length})</span>
-                <span className="text-white">${totalPrice.toFixed(2)}</span>
+                <span className="text-secondary-300">Booking ID</span>
+                <span className="text-white">{booking.id}</span>
               </div>
               <div className="flex justify-between mb-2">
-                <span className="text-secondary-300">Convenience Fee</span>
-                <span className="text-white">$0.00</span>
+                <span className="text-secondary-300">Total Amount</span>
+                <span className="text-white">${totalPrice.toFixed(2)}</span>
               </div>
             </div>
             
@@ -134,7 +130,7 @@ const CheckoutPage = () => {
             
             <div className="mt-6 flex items-start text-xs text-secondary-400">
               <AlertCircle className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-              <p>Your seats are reserved for 10 minutes. Please complete the payment within this time to confirm your booking.</p>
+              <p>Your booking will be confirmed once the payment is completed.</p>
             </div>
           </div>
         </div>
