@@ -313,6 +313,16 @@ export const api = {
           movies (*),
           halls (*)
         ),
+        booked_seats (
+          id,
+          seats (
+            id,
+            seat_number,
+            seat_rows (
+              row_letter
+            )
+          )
+        ),
         payments (*)
       `)
       .eq('user_id', userId)

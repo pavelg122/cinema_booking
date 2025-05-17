@@ -8,7 +8,7 @@ const PaymentSuccessPage: React.FC = () => {
   const location = useLocation();
   const { booking, screening, movie, selectedSeats, totalPrice } = location.state || {};
 
-  if (!booking || !screening || !movie) {
+  if (!booking || !screening || !movie || !selectedSeats) {
     return (
       <div className="section flex items-center justify-center min-h-[70vh]">
         <div className="bg-secondary-800 rounded-lg p-8 max-w-md w-full text-center">
