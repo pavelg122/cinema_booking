@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, Ticket } from 'lucide-react';
+import { CheckCircle, Ticket, Film, CreditCard } from 'lucide-react';
 import RatingPopup from '../components/RatingPopup';
 
 const PaymentSuccessPage: React.FC = () => {
@@ -13,9 +13,9 @@ const PaymentSuccessPage: React.FC = () => {
       <div className="section flex items-center justify-center min-h-[70vh]">
         <div className="bg-secondary-800 rounded-lg p-8 max-w-md w-full text-center">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-white mb-4">Payment Successful!</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">Booking Created!</h1>
           <p className="text-secondary-300 mb-6">
-            Your payment has been processed successfully.
+            Your booking has been created successfully.
           </p>
           <div className="space-y-4">
             <Link to="/bookings" className="btn btn-primary w-full flex items-center justify-center">
@@ -35,9 +35,9 @@ const PaymentSuccessPage: React.FC = () => {
     <div className="section flex items-center justify-center min-h-[70vh]">
       <div className="bg-secondary-800 rounded-lg p-8 max-w-md w-full text-center">
         <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
-        <h1 className="text-2xl font-bold text-white mb-4">Booking Confirmed!</h1>
+        <h1 className="text-2xl font-bold text-white mb-4">Booking Created!</h1>
         <p className="text-secondary-300 mb-6">
-          Your tickets have been booked successfully.
+          Your booking has been created successfully. Please complete the payment to confirm your tickets.
         </p>
 
         <div className="bg-secondary-900 rounded-lg p-6 mb-6 text-left">
@@ -68,18 +68,38 @@ const PaymentSuccessPage: React.FC = () => {
             </span>
           </div>
           <div className="flex justify-between font-medium text-lg mt-4 pt-4 border-t border-secondary-700">
-            <span className="text-white">Total Paid:</span>
+            <span className="text-white">Total:</span>
             <span className="text-primary-500">${totalPrice.toFixed(2)}</span>
           </div>
         </div>
 
         <div className="space-y-4">
-          <Link to="/bookings" className="btn btn-primary w-full flex items-center justify-center">
+          <Link 
+            to="/checkout" 
+            state={{ 
+              booking,
+              screening,
+              movie,
+              selectedSeats,
+              totalPrice,
+              bookingId: booking.id,
+              paymentId: booking.payment_id
+            }}
+            className="btn btn-primary w-full flex items-center justify-center"
+          >
+            <CreditCard className="h-5 w-5 mr-2" />
+            Complete Payment
+          </Link>
+          <Link to="/bookings" className="btn btn-outline w-full flex items-center justify-center">
             <Ticket className="h-5 w-5 mr-2" />
             View My Bookings
           </Link>
-          <Link to="/movies" className="btn btn-outline w-full">
-            Browse More Movies
+          <Link to={`/movies/${movie.id}`} className="btn btn-outline w-full flex items-center justify-center">
+            <Film className="h-5 w-5 mr-2" />
+            Movie Details
+          </Link>
+          <Link to="/" className="btn btn-outline w-full">
+            Return to Home
           </Link>
         </div>
       </div>

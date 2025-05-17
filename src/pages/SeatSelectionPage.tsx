@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { createEmbeddedCheckoutSession } from '../lib/stripe';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
 
@@ -242,25 +241,13 @@ const SeatSelectionPage: React.FC = () => {
         payment.id
       );
 
-      // Create a checkout session and get the clientSecret
-      const { clientSecret } = await createEmbeddedCheckoutSession({
-        amount: totalPrice,
-        bookingId: booking.id,
-        paymentId: payment.id,
-        returnUrl: `${window.location.origin}/payment-success`,
-        movieTitle: screening.movies.title // Add the movie title here
-      });
-
-      navigate('/checkout', {
+      navigate('/payment-success', {
         state: {
           booking,
           screening,
           movie: screening.movies,
           selectedSeats,
-          totalPrice,
-          clientSecret,
-          bookingId: booking.id,
-          paymentId: payment.id,
+          totalPrice
         }
       });
     } catch (err) {
