@@ -11,24 +11,38 @@ const RatingPopup: React.FC<RatingPopupProps> = ({ onClose }) => {
   const [comment, setComment] = useState('');
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
+      // Get the current user's ID from the auth session
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
 
-      await supabase.from('ratings').insert({
-        user_id: session.user.id,
-        rating,
-        comment: comment.trim() || null
-      });
+      // Insert the rating into the database
+      const { error: insertError } = await supabase
+        .from('ratings')
+        .insert({
+          user_id: user.id,
+          rating,
+          comment: comment.trim() || null
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
 
       onClose();
     } catch (error) {
       console.error('Error submitting rating:', error);
+      setError(error instanceof Error ? error.message : 'Failed to submit rating');
     } finally {
       setIsSubmitting(false);
     }
@@ -77,6 +91,12 @@ const RatingPopup: React.FC<RatingPopupProps> = ({ onClose }) => {
               placeholder="Tell us about your experience..."
             />
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-sm">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button
