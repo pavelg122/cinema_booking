@@ -222,7 +222,7 @@ const SeatSelectionPage: React.FC = () => {
   };
 
   const handleCreateBooking = async () => {
-    if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing) {
+    if (!user?.id || !screeningId || selectedSeats.length === 0 || isProcessing || !screening) {
       return;
     }
 
