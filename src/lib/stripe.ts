@@ -34,10 +34,8 @@ export const createPaymentIntent = async (amount: number) => {
 // For Stripe Embedded Checkout
 export const createEmbeddedCheckoutSession = async (params: {
   amount: number,
-  screeningId: string,
-  seatIds: string[],
-  reservationIds: string[],
-  movieTitle: string,
+  bookingId: string,
+  paymentId: string,
   returnUrl: string
 }) => {
   try {

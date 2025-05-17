@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronRight, Info } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { createEmbeddedCheckoutSession } from '../lib/stripe';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
 
@@ -242,15 +243,12 @@ const SeatSelectionPage: React.FC = () => {
       );
 
       // Create a checkout session and get the clientSecret
-      const { clientSecret } = await api.createCheckoutSession({
+      const { clientSecret } = await createEmbeddedCheckoutSession({
+        amount: totalPrice,
         bookingId: booking.id,
         paymentId: payment.id,
-        amount: totalPrice
+        returnUrl: `${window.location.origin}/payment-success`
       });
-
-      if (!clientSecret) {
-        throw new Error('Failed to create checkout session');
-      }
 
       navigate('/checkout', {
         state: {
