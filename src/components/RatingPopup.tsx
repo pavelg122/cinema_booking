@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 interface RatingPopupProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ const RatingPopup: React.FC<RatingPopupProps> = ({ onClose }) => {
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,29 +21,15 @@ const RatingPopup: React.FC<RatingPopupProps> = ({ onClose }) => {
     setError(null);
 
     try {
-      // Get the current user's email from the session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user?.email) {
+     if (!user?.email || !user?.id) {
         throw new Error('User not authenticated');
-      }
-
-      // Get the user ID from the users table using the email
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', session.user.email)
-        .single();
-
-      if (userError || !userData) {
-        throw new Error('User not found');
       }
 
       // Insert the rating into the database
       const { error: insertError } = await supabase
         .from('ratings')
         .insert({
-          user_id: userData.id,
+          user_id: user.id,
           rating,
           comment: comment.trim() || null
         });
