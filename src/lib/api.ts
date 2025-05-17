@@ -192,6 +192,17 @@ export const api = {
 
   // Payments
   async createPayment(userId: string, amount: number, paymentIntentId: string | null, status: string = 'completed'): Promise<Payment> {
+    // First verify that the user exists in public.users
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      throw new Error('User not found in public.users table');
+    }
+
     const { data, error } = await supabase
       .from('payments')
       .insert({
