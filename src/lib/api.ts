@@ -191,7 +191,7 @@ export const api = {
   },
 
   // Payments
-  async createPayment(userId: string, amount: number, paymentIntentId: string | null, status: string = 'pending'): Promise<Payment> {
+  async createPayment(userId: string, amount: number, paymentIntentId: string | null, status: string = 'completed'): Promise<Payment> {
     // First verify that the user exists in public.users
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -330,20 +330,6 @@ export const api = {
       .order('screening_date')
       .order('start_time');
     
-    if (error) throw error;
-    return data;
-  },
-
-  // Checkout
-  async createCheckoutSession({ bookingId, paymentId, amount }: { bookingId: string; paymentId: string; amount: number }) {
-    const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-      body: {
-        bookingId,
-        paymentId,
-        amount
-      }
-    });
-
     if (error) throw error;
     return data;
   }
