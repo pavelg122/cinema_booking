@@ -13,10 +13,9 @@ const CheckoutPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { booking, movie, screening, totalPrice, clientSecret, bookingId, paymentId } = location.state || {};
+  const { booking, movie, screening, totalPrice, clientSecret, bookingId, paymentId, selectedSeats } = location.state || {};
 
   useEffect(() => {
-    // Listen for the payment success event from the embedded form
     const handlePaymentSuccess = async (event: MessageEvent) => {
       if (event.data.type === 'embedded-checkout:completed') {
         const { paymentIntent } = event.data;
@@ -40,6 +39,7 @@ const CheckoutPage = () => {
               booking,
               screening,
               movie,
+              selectedSeats,
               totalPrice
             }
           });
@@ -53,7 +53,7 @@ const CheckoutPage = () => {
 
     window.addEventListener('message', handlePaymentSuccess);
     return () => window.removeEventListener('message', handlePaymentSuccess);
-  }, [user?.id, bookingId, paymentId, isProcessing, navigate, booking, screening, movie, totalPrice]);
+  }, [user?.id, bookingId, paymentId, isProcessing, navigate, booking, screening, movie, selectedSeats, totalPrice]);
 
   if (!booking || !movie || !screening || !totalPrice || !clientSecret) {
     navigate('/bookings');

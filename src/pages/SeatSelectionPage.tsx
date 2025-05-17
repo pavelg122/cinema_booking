@@ -241,10 +241,16 @@ const SeatSelectionPage: React.FC = () => {
         payment.id
       );
 
-      navigate('/bookings', {
+      navigate('/checkout', {
         state: {
-          newBooking: true,
-          message: 'Booking created successfully! Please complete your payment.'
+          booking,
+          screening,
+          movie: screening.movies,
+          selectedSeats,
+          totalPrice,
+          clientSecret,
+          bookingId: booking.id,
+          paymentId: payment.id,
         }
       });
     } catch (err) {
