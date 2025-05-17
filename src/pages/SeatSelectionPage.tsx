@@ -247,7 +247,8 @@ const SeatSelectionPage: React.FC = () => {
         amount: totalPrice,
         bookingId: booking.id,
         paymentId: payment.id,
-        returnUrl: `${window.location.origin}/payment-success`
+        returnUrl: `${window.location.origin}/payment-success`,
+        movieTitle: screening.movies.title // Add the movie title here
       });
 
       navigate('/checkout', {
