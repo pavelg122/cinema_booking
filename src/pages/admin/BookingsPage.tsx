@@ -1,23 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ticket, Search, Eye, Filter, Download, CheckCircle, XCircle } from 'lucide-react';
-import { bookings, movies, screenings } from '../../data/mockData';
-import { format, parseISO } from 'date-fns';
+import { api } from '../../lib/api';
+import { format } from 'date-fns';
+import type { Database } from '../../types/database.types';
+
+type Booking = Database['public']['Tables']['bookings']['Row'] & {
+  screenings: {
+    movies: Database['public']['Tables']['movies']['Row'];
+    halls: Database['public']['Tables']['halls']['Row'];
+  } & Database['public']['Tables']['screenings']['Row'];
+  booked_seats: {
+    seats: {
+      seat_number: number;
+      seat_rows: {
+        row_letter: string;
+      };
+    };
+  }[];
+};
 
 const BookingsPage: React.FC = () => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isViewBookingModalOpen, setIsViewBookingModalOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const { data: bookings, error } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            screenings (
+              *,
+              movies (*),
+              halls (*)
+            ),
+            booked_seats (
+              seats (
+                seat_number,
+                seat_rows (
+                  row_letter
+                )
+              )
+            )
+          `)
+          .order('booking_date', { ascending: false });
+
+        if (error) throw error;
+        setBookings(bookings);
+      } catch (err) {
+        console.error('Error fetching bookings:', err);
+        setError('Failed to load bookings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, []);
   
   // Filter bookings
   const filteredBookings = bookings.filter(booking => {
-    const movie = movies.find(m => m.id === booking.movieId);
-    const screening = screenings.find(s => s.id === booking.screeningId);
-    
     const matchesSearch = 
       booking.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movie?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.userId.toLowerCase().includes(searchTerm.toLowerCase());
+      booking.screenings.movies.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.user_id.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     
@@ -26,8 +78,29 @@ const BookingsPage: React.FC = () => {
   
   // Sort bookings by date (most recent first)
   const sortedBookings = [...filteredBookings].sort((a, b) => {
-    return new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime();
+    return new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime();
   });
+
+  const handleUpdateBookingStatus = async (bookingId: string, status: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ status })
+        .eq('id', bookingId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setBookings(bookings.map(booking => 
+        booking.id === bookingId ? { ...booking, status: data.status } : booking
+      ));
+      setIsViewBookingModalOpen(false);
+    } catch (err) {
+      console.error('Error updating booking status:', err);
+      setError('Failed to update booking status');
+    }
+  };
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -37,19 +110,14 @@ const BookingsPage: React.FC = () => {
       return dateString;
     }
   };
-  
-  // Open booking details modal
-  const openBookingDetailsModal = (booking: any) => {
-    setSelectedBooking(booking);
-    setIsViewBookingModalOpen(true);
-  };
-  
-  // Get booking details with movie and screening
-  const getBookingDetails = (booking: any) => {
-    const movie = movies.find(m => m.id === booking.movieId);
-    const screening = screenings.find(s => s.id === booking.screeningId);
-    return { movie, screening };
-  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -67,6 +135,12 @@ const BookingsPage: React.FC = () => {
           Export
         </button>
       </div>
+
+      {error && (
+        <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md mb-6">
+          {error}
+        </div>
+      )}
       
       <div className="bg-secondary-800 rounded-lg shadow-lg overflow-hidden">
         {/* Search and Filters */}
@@ -117,9 +191,6 @@ const BookingsPage: React.FC = () => {
                   Date & Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
-                  Seats
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
                   Amount
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
@@ -131,62 +202,61 @@ const BookingsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-secondary-800">
-              {sortedBookings.map((booking) => {
-                const { movie, screening } = getBookingDetails(booking);
-                return (
-                  <tr key={booking.id} className="hover:bg-secondary-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
-                      {booking.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                      {booking.userId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src={movie?.posterUrl}
-                          alt={movie?.title}
-                          className="h-10 w-7 object-cover rounded-sm mr-3"
-                        />
-                        <div className="text-sm font-medium text-white">{movie?.title}</div>
+              {sortedBookings.map((booking) => (
+                <tr key={booking.id} className="hover:bg-secondary-700/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
+                    {booking.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    {booking.user_id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <img
+                        src={booking.screenings.movies.poster_url}
+                        alt={booking.screenings.movies.title}
+                        className="h-10 w-7 object-cover rounded-sm mr-3"
+                      />
+                      <div className="text-sm font-medium text-white">
+                        {booking.screenings.movies.title}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
-                      {screening?.date} <br />
-                      {screening?.startTime}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
-                      {booking.seats.length} ({booking.seats.map(s => s.row + s.number).join(', ')})
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                      ${booking.totalPrice.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        booking.status === 'confirmed' 
-                          ? 'bg-green-900/40 text-green-400' 
-                          : booking.status === 'pending'
-                          ? 'bg-yellow-900/40 text-yellow-400'
-                          : 'bg-red-900/40 text-red-400'
-                      }`}>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => openBookingDetailsModal(booking)}
-                        className="text-primary-400 hover:text-primary-300 focus:outline-none"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
+                    {booking.screenings.screening_date} <br />
+                    {booking.screenings.start_time}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    ${booking.total_price.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      booking.status === 'confirmed' 
+                        ? 'bg-green-900/40 text-green-400' 
+                        : booking.status === 'pending'
+                        ? 'bg-yellow-900/40 text-yellow-400'
+                        : 'bg-red-900/40 text-red-400'
+                    }`}>
+                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setIsViewBookingModalOpen(true);
+                      }}
+                      className="text-primary-400 hover:text-primary-300 focus:outline-none"
+                    >
+                      <Eye size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
               
               {sortedBookings.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center">
+                  <td colSpan={7} className="px-6 py-10 text-center">
                     <Ticket className="mx-auto h-10 w-10 text-secondary-600 mb-2" />
                     <p className="text-secondary-400">No bookings found</p>
                     <p className="text-secondary-500 text-sm mt-1">
@@ -220,87 +290,97 @@ const BookingsPage: React.FC = () => {
             </div>
             
             <div className="p-6">
-              {(() => {
-                const { movie, screening } = getBookingDetails(selectedBooking);
-                return (
-                  <div className="space-y-6">
-                    <div className="flex flex-col md:flex-row gap-6">
-                      <div className="md:w-1/3">
-                        <img
-                          src={movie?.posterUrl}
-                          alt={movie?.title}
-                          className="w-full h-auto rounded-lg"
-                        />
-                      </div>
-                      
-                      <div className="md:w-2/3 space-y-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-white mb-1">{movie?.title}</h3>
-                          <p className="text-sm text-secondary-400">{movie?.genre.join(', ')}</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs text-secondary-400">Date</p>
-                            <p className="text-sm text-white">{screening?.date}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-xs text-secondary-400">Time</p>
-                            <p className="text-sm text-white">{screening?.startTime} - {screening?.endTime}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-xs text-secondary-400">Hall</p>
-                            <p className="text-sm text-white">{screening?.hall}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-xs text-secondary-400">Seats</p>
-                            <p className="text-sm text-white">{selectedBooking.seats.map(s => s.row + s.number).join(', ')}</p>
-                          </div>
-                        </div>
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="md:w-1/3">
+                    <img
+                      src={selectedBooking.screenings.movies.poster_url}
+                      alt={selectedBooking.screenings.movies.title}
+                      className="w-full h-auto rounded-lg"
+                    />
+                  </div>
+                  
+                  <div className="md:w-2/3 space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        {selectedBooking.screenings.movies.title}
+                      </h3>
+                      <div className="text-sm text-secondary-400">
+                        {selectedBooking.screenings.movies.genre.join(', ')}
                       </div>
                     </div>
                     
-                    <div className="border-t border-secondary-700 pt-4">
-                      <h4 className="text-md font-semibold text-white mb-3">Booking Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-secondary-400">Date</p>
+                        <p className="text-sm text-white">
+                          {selectedBooking.screenings.screening_date}
+                        </p>
+                      </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-secondary-400">Booking ID</p>
-                          <p className="text-sm text-white">{selectedBooking.id}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-secondary-400">Booking Date</p>
-                          <p className="text-sm text-white">{formatDate(selectedBooking.bookingDate)}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-secondary-400">Customer ID</p>
-                          <p className="text-sm text-white">{selectedBooking.userId}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-secondary-400">Total Amount</p>
-                          <p className="text-sm text-white font-medium">${selectedBooking.totalPrice.toFixed(2)}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-secondary-400">Payment Method</p>
-                          <p className="text-sm text-white">{selectedBooking.paymentMethod || 'N/A'}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-secondary-400">Payment ID</p>
-                          <p className="text-sm text-white">{selectedBooking.paymentId || 'N/A'}</p>
-                        </div>
+                      <div>
+                        <p className="text-xs text-secondary-400">Time</p>
+                        <p className="text-sm text-white">
+                          {selectedBooking.screenings.start_time} - {selectedBooking.screenings.end_time}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs text-secondary-400">Hall</p>
+                        <p className="text-sm text-white">
+                          {selectedBooking.screenings.halls.name}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-xs text-secondary-400">Seats</p>
+                        <p className="text-sm text-white">
+                          {selectedBooking.booked_seats.map(seat => 
+                            `${seat.seats.seat_rows.row_letter}${seat.seats.seat_number}`
+                          ).join(', ')}
+                        </p>
                       </div>
                     </div>
                   </div>
-                );
-              })()}
+                </div>
+                
+                <div className="border-t border-secondary-700 pt-4">
+                  <h4 className="text-md font-semibold text-white mb-3">Booking Information</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-secondary-400">Booking ID</p>
+                      <p className="text-sm text-white">{selectedBooking.id}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-secondary-400">Booking Date</p>
+                      <p className="text-sm text-white">
+                        {formatDate(selectedBooking.booking_date)}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-secondary-400">Customer ID</p>
+                      <p className="text-sm text-white">{selectedBooking.user_id}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-secondary-400">Total Amount</p>
+                      <p className="text-sm text-white font-medium">
+                        ${selectedBooking.total_price.toFixed(2)}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs text-secondary-400">Payment ID</p>
+                      <p className="text-sm text-white">
+                        {selectedBooking.payment_id || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <div className="p-6 border-t border-secondary-700 flex justify-between">
@@ -308,12 +388,14 @@ const BookingsPage: React.FC = () => {
                 {selectedBooking.status === 'pending' && (
                   <>
                     <button
+                      onClick={() => handleUpdateBookingStatus(selectedBooking.id, 'confirmed')}
                       className="btn btn-sm bg-green-700 text-white hover:bg-green-600 flex items-center"
                     >
                       <CheckCircle size={16} className="mr-1" />
                       Confirm
                     </button>
                     <button
+                      onClick={() => handleUpdateBookingStatus(selectedBooking.id, 'cancelled')}
                       className="btn btn-sm bg-red-700 text-white hover:bg-red-600 flex items-center"
                     >
                       <XCircle size={16} className="mr-1" />
