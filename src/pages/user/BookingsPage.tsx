@@ -162,7 +162,7 @@ const BookingsPage: React.FC = () => {
                   </div>
                   
                   <div className="border-t border-secondary-700 pt-4 mb-4">
-                    <div className="flex flex-wrap gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <h4 className="text-sm font-medium text-secondary-400 mb-1">Booking ID</h4>
                         <p className="text-white">{booking.id}</p>
@@ -170,6 +170,16 @@ const BookingsPage: React.FC = () => {
                       <div>
                         <h4 className="text-sm font-medium text-secondary-400 mb-1">Booking Date</h4>
                         <p className="text-white">{format(parseISO(booking.booking_date), 'MMM dd, yyyy')}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-secondary-400 mb-1">Seats</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {booking.booked_seats?.map((seat) => (
+                            <span key={seat.id} className="bg-primary-700 text-white px-2 py-1 rounded-md text-sm">
+                              {seat.seats.seat_rows.row_letter}{seat.seats.seat_number}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-secondary-400 mb-1">Total Price</h4>
