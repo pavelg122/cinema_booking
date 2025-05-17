@@ -19,18 +19,29 @@ const RatingPopup: React.FC<RatingPopupProps> = ({ onClose }) => {
     setError(null);
 
     try {
-      // Get the current user's ID from the auth session
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get the current user's email from the session
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!user?.id) {
+      if (!session?.user?.email) {
         throw new Error('User not authenticated');
+      }
+
+      // Get the user ID from the users table using the email
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('User not found');
       }
 
       // Insert the rating into the database
       const { error: insertError } = await supabase
         .from('ratings')
         .insert({
-          user_id: user.id,
+          user_id: userData.id,
           rating,
           comment: comment.trim() || null
         });
