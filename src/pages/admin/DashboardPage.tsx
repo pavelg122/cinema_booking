@@ -12,38 +12,68 @@ type Screening = Database['public']['Tables']['screenings']['Row'] & {
 type Booking = Database['public']['Tables']['bookings']['Row'];
 
 const DashboardPage: React.FC = () => {
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [screenings, setScreenings] = useState<Screening[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [data, setData] = useState<{
+    movies: Movie[];
+    screenings: Screening[];
+    bookings: Booking[];
+    revenue: {
+      total: number;
+      confirmed: number;
+      pending: number;
+    };
+  }>({
+    movies: [],
+    screenings: [],
+    bookings: [],
+    revenue: {
+      total: 0,
+      confirmed: 0,
+      pending: 0
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [moviesData, screeningsData, bookingsData] = await Promise.all([
+        // Fetch all required data
+        const [moviesData, screeningsData] = await Promise.all([
           api.getMovies(),
-          api.getScreenings(),
-          api.getScreeningOccupancy()
+          api.getScreenings()
         ]);
 
-        setMovies(moviesData);
-        setScreenings(screeningsData);
-        // Calculate total revenue from confirmed bookings
-        const { data: bookings } = await supabase
+        // Get bookings with their total prices
+        const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
-          .select('total_price')
-          .eq('status', 'confirmed');
-        
-        const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.total_price, 0) || 0;
-
-        // Get popular movies
-        const { data: popularMovies } = await supabase
-          .from('popular_movies')
           .select('*')
-          .limit(5);
+          .order('created_at', { ascending: false });
 
-        setBookings(bookingsData);
+        if (bookingsError) throw bookingsError;
+
+        // Calculate revenue
+        const revenue = {
+          total: 0,
+          confirmed: 0,
+          pending: 0
+        };
+
+        if (bookingsData) {
+          revenue.total = bookingsData.reduce((sum, booking) => sum + (booking.total_price || 0), 0);
+          revenue.confirmed = bookingsData
+            .filter(b => b.status === 'confirmed')
+            .reduce((sum, booking) => sum + (booking.total_price || 0), 0);
+          revenue.pending = bookingsData
+            .filter(b => b.status === 'pending')
+            .reduce((sum, booking) => sum + (booking.total_price || 0), 0);
+        }
+
+        setData({
+          movies: moviesData,
+          screenings: screeningsData,
+          bookings: bookingsData || [],
+          revenue
+        });
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         setError('Failed to load dashboard data');
@@ -65,22 +95,18 @@ const DashboardPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/30 border border-red-800 text-red-300 rounded-md">
+      <div className="bg-red-900/30 border border-red-800 text-red-300 px-4 py-3 rounded-md">
         {error}
       </div>
     );
   }
 
   // Calculate statistics
-  const totalRevenue = bookings
-    .filter(b => b.status === 'confirmed')
-    .reduce((sum, booking) => sum + booking.total_price, 0);
-
-  const totalScreenings = screenings.length;
-  
-  const occupancyRate = Math.round(
-    (bookings.filter(b => b.status === 'confirmed').length / totalScreenings) * 100
-  );
+  const totalBookings = data.bookings.length;
+  const confirmedBookings = data.bookings.filter(b => b.status === 'confirmed').length;
+  const occupancyRate = totalBookings > 0 
+    ? Math.round((confirmedBookings / totalBookings) * 100)
+    : 0;
 
   return (
     <div>
@@ -95,7 +121,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-secondary-400 text-sm">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-white">${totalRevenue.toFixed(2)}</h3>
+              <h3 className="text-2xl font-bold text-white">${data.revenue.total.toFixed(2)}</h3>
             </div>
             <div className="p-3 bg-green-900/30 rounded-full text-green-500">
               <DollarSign size={20} />
@@ -112,7 +138,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-secondary-400 text-sm">Bookings</p>
-              <h3 className="text-2xl font-bold text-white">{bookings.length}</h3>
+              <h3 className="text-2xl font-bold text-white">{totalBookings}</h3>
             </div>
             <div className="p-3 bg-blue-900/30 rounded-full text-blue-500">
               <Users size={20} />
@@ -129,7 +155,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-secondary-400 text-sm">Screenings</p>
-              <h3 className="text-2xl font-bold text-white">{screenings.length}</h3>
+              <h3 className="text-2xl font-bold text-white">{data.screenings.length}</h3>
             </div>
             <div className="p-3 bg-purple-900/30 rounded-full text-purple-500">
               <Calendar size={20} />
@@ -171,27 +197,31 @@ const DashboardPage: React.FC = () => {
           </div>
           <div className="p-4">
             <div className="space-y-4">
-              {movies.slice(0, 5).map(movie => (
-                <div key={movie.id} className="flex items-center p-2 rounded-lg hover:bg-secondary-700 transition-colors">
-                  <img 
-                    src={movie.poster_url} 
-                    alt={movie.title} 
-                    className="w-12 h-16 object-cover rounded-md mr-4"
-                  />
-                  <div className="flex-grow">
-                    <h3 className="font-medium text-white">{movie.title}</h3>
-                    <p className="text-sm text-secondary-400">{movie.genre.join(', ')}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-white">
-                      {bookings.filter(b => 
-                        b.screening_id === screenings.find(s => s.movie_id === movie.id)?.id
-                      ).length}
+              {data.movies.slice(0, 5).map((movie) => {
+                const movieBookings = data.bookings.filter(b => 
+                  data.screenings.find(s => 
+                    s.movie_id === movie.id && s.id === b.screening_id
+                  )
+                );
+                
+                return (
+                  <div key={movie.id} className="flex items-center p-2 rounded-lg hover:bg-secondary-700 transition-colors">
+                    <img 
+                      src={movie.poster_url} 
+                      alt={movie.title} 
+                      className="w-12 h-16 object-cover rounded-md mr-4"
+                    />
+                    <div className="flex-grow">
+                      <h3 className="font-medium text-white">{movie.title}</h3>
+                      <p className="text-sm text-secondary-400">{movie.genre.join(', ')}</p>
                     </div>
-                    <div className="text-xs text-secondary-400">bookings</div>
+                    <div className="text-center">
+                      <div className="text-lg font-semibold text-white">{movieBookings.length}</div>
+                      <div className="text-xs text-secondary-400">bookings</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -222,9 +252,9 @@ const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-800">
-                {bookings.slice(0, 5).map((booking) => {
-                  const screening = screenings.find(s => s.id === booking.screening_id);
-                  const movie = movies.find(m => m.id === screening?.movie_id);
+                {data.bookings.slice(0, 5).map((booking) => {
+                  const screening = data.screenings.find(s => s.id === booking.screening_id);
+                  const movie = data.movies.find(m => m.id === screening?.movie_id);
                   
                   return (
                     <tr key={booking.id} className="hover:bg-secondary-700/50 transition-colors">
@@ -235,7 +265,7 @@ const DashboardPage: React.FC = () => {
                         <div className="text-sm font-medium text-white">{movie?.title}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                        ${booking.total_price.toFixed(2)}
+                        ${booking.total_price?.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -286,8 +316,10 @@ const DashboardPage: React.FC = () => {
           </div>
           <div className="p-4">
             <div className="space-y-4">
-              {screenings.slice(0, 5).map((screening) => {
-                const movie = movies.find(m => m.id === screening.movie_id);
+              {data.screenings.slice(0, 5).map((screening) => {
+                const movie = data.movies.find(m => m.id === screening.movie_id);
+                const screeningBookings = data.bookings.filter(b => b.screening_id === screening.id);
+                
                 return (
                   <div key={screening.id} className="p-3 bg-secondary-700/50 rounded-lg">
                     <h3 className="font-medium text-white mb-1">{movie?.title}</h3>
@@ -298,7 +330,7 @@ const DashboardPage: React.FC = () => {
                     <div className="mt-2 flex justify-between items-center">
                       <span className="text-xs text-secondary-400">{screening.halls.name}</span>
                       <span className="text-xs px-2 py-1 bg-secondary-900 rounded-full">
-                        {bookings.filter(b => b.screening_id === screening.id).length} bookings
+                        {screeningBookings.length} bookings
                       </span>
                     </div>
                   </div>
