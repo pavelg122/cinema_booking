@@ -1,18 +1,85 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, Film, Calendar, TrendingUp, ChevronUp, ChevronDown, DollarSign } from 'lucide-react';
-import { movies, screenings, bookings, getPopularMovies } from '../../data/mockData';
+import { api } from '../../lib/api';
+import type { Database } from '../../types/database.types';
+
+type Movie = Database['public']['Tables']['movies']['Row'];
+type Screening = Database['public']['Tables']['screenings']['Row'] & {
+  movies: Movie;
+  halls: Database['public']['Tables']['halls']['Row'];
+};
+type Booking = Database['public']['Tables']['bookings']['Row'];
 
 const DashboardPage: React.FC = () => {
-  // Get popular movies
-  const popularMovies = getPopularMovies();
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [screenings, setScreenings] = useState<Screening[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [moviesData, screeningsData, bookingsData] = await Promise.all([
+          api.getMovies(),
+          api.getScreenings(),
+          api.getScreeningOccupancy()
+        ]);
+
+        setMovies(moviesData);
+        setScreenings(screeningsData);
+        // Calculate total revenue from confirmed bookings
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('total_price')
+          .eq('status', 'confirmed');
+        
+        const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.total_price, 0) || 0;
+
+        // Get popular movies
+        const { data: popularMovies } = await supabase
+          .from('popular_movies')
+          .select('*')
+          .limit(5);
+
+        setBookings(bookingsData);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-900/30 border border-red-800 text-red-300 rounded-md">
+        {error}
+      </div>
+    );
+  }
+
+  // Calculate statistics
+  const totalRevenue = bookings
+    .filter(b => b.status === 'confirmed')
+    .reduce((sum, booking) => sum + booking.total_price, 0);
+
+  const totalScreenings = screenings.length;
   
-  // Calculate total revenue
-  const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
-  
-  // Calculate seats sold percentage
-  const totalSeats = screenings.reduce((sum, screening) => sum + screening.totalSeats, 0);
-  const soldSeats = totalSeats - screenings.reduce((sum, screening) => sum + screening.seatsAvailable, 0);
-  const occupancyRate = Math.round((soldSeats / totalSeats) * 100);
+  const occupancyRate = Math.round(
+    (bookings.filter(b => b.status === 'confirmed').length / totalScreenings) * 100
+  );
 
   return (
     <div>
@@ -103,10 +170,10 @@ const DashboardPage: React.FC = () => {
           </div>
           <div className="p-4">
             <div className="space-y-4">
-              {popularMovies.slice(0, 5).map(({ movie, bookingCount }) => (
+              {movies.slice(0, 5).map(movie => (
                 <div key={movie.id} className="flex items-center p-2 rounded-lg hover:bg-secondary-700 transition-colors">
                   <img 
-                    src={movie.posterUrl} 
+                    src={movie.poster_url} 
                     alt={movie.title} 
                     className="w-12 h-16 object-cover rounded-md mr-4"
                   />
@@ -115,7 +182,11 @@ const DashboardPage: React.FC = () => {
                     <p className="text-sm text-secondary-400">{movie.genre.join(', ')}</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-white">{bookingCount}</div>
+                    <div className="text-lg font-semibold text-white">
+                      {bookings.filter(b => 
+                        b.screening_id === screenings.find(s => s.movie_id === movie.id)?.id
+                      ).length}
+                    </div>
                     <div className="text-xs text-secondary-400">bookings</div>
                   </div>
                 </div>
@@ -142,9 +213,6 @@ const DashboardPage: React.FC = () => {
                     Movie
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
-                    Seats
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-secondary-400 uppercase tracking-wider">
@@ -153,8 +221,10 @@ const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-800">
-                {bookings.map((booking) => {
-                  const movie = movies.find(m => m.id === booking.movieId);
+                {bookings.slice(0, 5).map((booking) => {
+                  const screening = screenings.find(s => s.id === booking.screening_id);
+                  const movie = movies.find(m => m.id === screening?.movie_id);
+                  
                   return (
                     <tr key={booking.id} className="hover:bg-secondary-700/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
@@ -163,11 +233,8 @@ const DashboardPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-white">{movie?.title}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary-300">
-                        {booking.seats.length} seats
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                        ${booking.totalPrice.toFixed(2)}
+                        ${booking.total_price.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -199,7 +266,6 @@ const DashboardPage: React.FC = () => {
             </h2>
           </div>
           <div className="p-6">
-            {/* Chart would go here in a real app */}
             <div className="flex h-64 items-center justify-center">
               <div className="text-center text-secondary-400">
                 <BarChart3 size={40} className="mx-auto mb-2 text-secondary-600" />
@@ -220,18 +286,18 @@ const DashboardPage: React.FC = () => {
           <div className="p-4">
             <div className="space-y-4">
               {screenings.slice(0, 5).map((screening) => {
-                const movie = movies.find(m => m.id === screening.movieId);
+                const movie = movies.find(m => m.id === screening.movie_id);
                 return (
                   <div key={screening.id} className="p-3 bg-secondary-700/50 rounded-lg">
                     <h3 className="font-medium text-white mb-1">{movie?.title}</h3>
                     <div className="flex justify-between text-sm">
-                      <span className="text-secondary-400">{screening.date}</span>
-                      <span className="text-secondary-400">{screening.startTime}</span>
+                      <span className="text-secondary-400">{screening.screening_date}</span>
+                      <span className="text-secondary-400">{screening.start_time}</span>
                     </div>
                     <div className="mt-2 flex justify-between items-center">
-                      <span className="text-xs text-secondary-400">{screening.hall}</span>
+                      <span className="text-xs text-secondary-400">{screening.halls.name}</span>
                       <span className="text-xs px-2 py-1 bg-secondary-900 rounded-full">
-                        {screening.seatsAvailable} seats left
+                        {bookings.filter(b => b.screening_id === screening.id).length} bookings
                       </span>
                     </div>
                   </div>
