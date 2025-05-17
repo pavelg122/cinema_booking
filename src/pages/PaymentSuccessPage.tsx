@@ -73,7 +73,7 @@ const PaymentSuccessPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex flex-col space-y-3">
           <Link 
             to="/checkout" 
             state={{ 
