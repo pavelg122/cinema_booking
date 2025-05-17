@@ -241,6 +241,17 @@ const SeatSelectionPage: React.FC = () => {
         payment.id
       );
 
+      // Create a checkout session and get the clientSecret
+      const { clientSecret } = await api.createCheckoutSession({
+        bookingId: booking.id,
+        paymentId: payment.id,
+        amount: totalPrice
+      });
+
+      if (!clientSecret) {
+        throw new Error('Failed to create checkout session');
+      }
+
       navigate('/checkout', {
         state: {
           booking,
