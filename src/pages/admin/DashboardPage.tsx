@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, Film, Calendar, TrendingUp, ChevronUp, ChevronDown, DollarSign } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import type { Database } from '../../types/database.types';
 
 type Movie = Database['public']['Tables']['movies']['Row'];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Ticket, Search, Eye, Filter, Download, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import type { Database } from '../../types/database.types';
 
