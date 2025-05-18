@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Starting data fetch for homepage...');
+        //console.log('Starting data fetch for homepage...');
         
         // Fetch both regular and popular movies
         const [moviesData, popularMoviesData] = await Promise.all([
@@ -23,8 +23,8 @@ const HomePage: React.FC = () => {
           api.getPopularMovies()
         ]);
 
-        console.log('Movies data fetched:', moviesData);
-        console.log('Popular movies data fetched:', popularMoviesData);
+        //console.log('Movies data fetched:', moviesData);
+        //console.log('Popular movies data fetched:', popularMoviesData);
         
         setMovies(moviesData);
         setPopularMovies(popularMoviesData);
