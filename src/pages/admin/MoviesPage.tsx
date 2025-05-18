@@ -100,20 +100,46 @@ const MoviesPage: React.FC = () => {
 
   const handleEditMovie = async (id: string, movieData: Partial<Movie>) => {
     try {
-      const { data, error } = await supabase
+      // First verify the movie exists
+      const { data: existingMovie, error: fetchError } = await supabase
+        .from('movies')
+        .select()
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          throw new Error(`Movie with ID ${id} not found`);
+        }
+        throw fetchError;
+      }
+
+      // Proceed with update if movie exists
+      const { data, error: updateError } = await supabase
         .from('movies')
         .update(movieData)
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (updateError) {
+        if (updateError.code === 'PGRST116') {
+          throw new Error(`Failed to update movie: Movie with ID ${id} no longer exists`);
+        }
+        throw updateError;
+      }
+
+      if (!data) {
+        throw new Error('No data returned after update');
+      }
 
       setMovies(movies.map(movie => movie.id === id ? data : movie));
+      setSelectedMovie(null);
       setIsAddMovieModalOpen(false);
+      setError(null);
     } catch (err) {
       console.error('Error updating movie:', err);
-      setError('Failed to update movie');
+      setError(err instanceof Error ? err.message : 'Failed to update movie');
     }
   };
 
@@ -602,7 +628,11 @@ const MoviesPage: React.FC = () => {
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
-                    onClick={() => setIsAddMovieModalOpen(false)}
+                    onClick={() => {
+                      setSelectedMovie(null);
+                      setIsAddMovieModalOpen(false);
+                      setError(null);
+                    }}
                     className="btn btn-outline"
                   >
                     Cancel
