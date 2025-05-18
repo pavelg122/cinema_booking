@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit, Trash2, Search, Film, Clock, MapPin, Users } from 'lucide-react';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { format, parse, isToday, isAfter, isBefore, addDays } from 'date-fns';
 import type { Database } from '../../types/database.types';
 
