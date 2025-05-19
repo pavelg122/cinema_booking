@@ -100,46 +100,64 @@ const MoviesPage: React.FC = () => {
 
   const handleEditMovie = async (id: string, movieData: Partial<Movie>) => {
     try {
-      // First verify the movie exists
-      const { data: existingMovie, error: fetchError } = await supabase
+      // First verify the movie exists and get its current state
+      const { data: currentMovie, error: fetchError } = await supabase
         .from('movies')
-        .select()
+        .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          throw new Error(`Movie with ID ${id} not found`);
-        }
-        throw fetchError;
+      if (fetchError) throw fetchError;
+
+      if (!currentMovie) {
+        throw new Error(`Movie with ID ${id} no longer exists`);
       }
 
-      // Proceed with update if movie exists
-      const { data, error: updateError } = await supabase
+      // Compare timestamps to check for concurrent modifications
+      if (selectedMovie && currentMovie.updated_at !== selectedMovie.updated_at) {
+        throw new Error('This movie has been modified by another user. Please refresh and try again.');
+      }
+
+      // Proceed with update if movie exists and hasn't been modified
+      const { data: updatedMovie, error: updateError } = await supabase
         .from('movies')
-        .update(movieData)
+        .update({
+          ...movieData,
+          updated_at: new Date().toISOString() // Update the timestamp
+        })
         .eq('id', id)
         .select()
         .single();
 
-      if (updateError) {
-        if (updateError.code === 'PGRST116') {
-          throw new Error(`Failed to update movie: Movie with ID ${id} no longer exists`);
-        }
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      if (!data) {
+      if (!updatedMovie) {
         throw new Error('No data returned after update');
       }
 
-      setMovies(movies.map(movie => movie.id === id ? data : movie));
+      // Update local state
+      setMovies(prevMovies => prevMovies.map(movie => 
+        movie.id === id ? updatedMovie : movie
+      ));
       setSelectedMovie(null);
       setIsAddMovieModalOpen(false);
       setError(null);
+
     } catch (err) {
       console.error('Error updating movie:', err);
       setError(err instanceof Error ? err.message : 'Failed to update movie');
+      
+      // If the error indicates the movie was modified by another user,
+      // refresh the movies list to get the latest data
+      if (err instanceof Error && err.message.includes('modified by another user')) {
+        const { data: refreshedMovies } = await supabase
+          .from('movies')
+          .select('*');
+          
+        if (refreshedMovies) {
+          setMovies(refreshedMovies);
+        }
+      }
     }
   };
 
