@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Calendar, TrendingUp, TicketCheck, Film, Filter } from 'lucide-react';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { downloadBlob } from '../../lib/downloadHelpers';
 import type { Database } from '../../types/database.types';
 
 type Movie = Database['public']['Tables']['movies']['Row'];
@@ -38,6 +39,21 @@ const ReportsPage: React.FC = () => {
       pending: 0
     }
   });
+
+  const handleExportData = async () => {
+    try {
+      if (report === 'revenue') {
+        const pdfBlob = await api.generateRevenueReport();
+        downloadBlob(pdfBlob, 'revenue-report.pdf');
+      } else {
+        const pdfBlob = await api.generateBookingReport();
+        downloadBlob(pdfBlob, 'booking-report.pdf');
+      }
+    } catch (err) {
+      console.error('Error exporting report:', err);
+      setError('Failed to export report. Please try again.');
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -100,7 +116,7 @@ const ReportsPage: React.FC = () => {
         </div>
         
         <button
-          onClick={() => console.log('Export report')}
+          onClick={handleExportData}
           className="btn btn-outline flex items-center"
         >
           <Download size={18} className="mr-2" />
