@@ -117,7 +117,8 @@ const MoviesPage: React.FC = () => {
       if (selectedMovie && currentMovie.updated_at !== selectedMovie.updated_at) {
         throw new Error('This movie has been modified by another user. Please refresh and try again.');
       }
-
+console.log("Attempting to update movie with ID:", id);
+      console.log("Update data:", movieData);
       // Proceed with update if movie exists and hasn't been modified
       const { data: updatedMovie, error: updateError } = await supabase
         .from('movies')
