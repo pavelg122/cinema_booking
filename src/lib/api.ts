@@ -342,5 +342,72 @@ export const api = {
     
     if (error) throw error;
     return data;
+  },
+
+  // Download functions
+  async generateTicketPDF(booking: Booking): Promise<Blob> {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ticket`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate ticket');
+      }
+
+      return await response.blob();
+    } catch (error) {
+      console.error('Error generating ticket:', error);
+      throw error;
+    }
+  },
+
+  async generateBookingReport(startDate?: string, endDate?: string): Promise<Blob> {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-booking-report`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ startDate, endDate }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate booking report');
+      }
+
+      return await response.blob();
+    } catch (error) {
+      console.error('Error generating booking report:', error);
+      throw error;
+    }
+  },
+
+  async generateRevenueReport(startDate?: string, endDate?: string): Promise<Blob> {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-revenue-report`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ startDate, endDate }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate revenue report');
+      }
+
+      return await response.blob();
+    } catch (error) {
+      console.error('Error generating revenue report:', error);
+      throw error;
+    }
   }
 };
