@@ -3,6 +3,7 @@ import { Ticket, Search, Eye, Filter, Download, CheckCircle, XCircle } from 'luc
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
+import { downloadBlob } from '../../lib/downloadHelpers';
 import type { Database } from '../../types/database.types';
 
 type Booking = Database['public']['Tables']['bookings']['Row'] & {
@@ -64,6 +65,26 @@ const BookingsPage: React.FC = () => {
 
     fetchBookings();
   }, []);
+  
+  const handleExportBookings = async () => {
+    try {
+      const pdfBlob = await api.generateBookingReport();
+      downloadBlob(pdfBlob, 'bookings-report.pdf');
+    } catch (err) {
+      console.error('Error exporting bookings:', err);
+      setError('Failed to export bookings. Please try again.');
+    }
+  };
+
+  const handleDownloadTicket = async (booking: Booking) => {
+    try {
+      const pdfBlob = await api.generateTicketPDF(booking);
+      downloadBlob(pdfBlob, `ticket-${booking.id}.pdf`);
+    } catch (err) {
+      console.error('Error downloading ticket:', err);
+      setError('Failed to download ticket. Please try again.');
+    }
+  };
   
   // Filter bookings
   const filteredBookings = bookings.filter(booking => {
@@ -129,7 +150,7 @@ const BookingsPage: React.FC = () => {
         </div>
         
         <button
-          onClick={() => console.log('Export bookings')}
+          onClick={handleExportBookings}
           className="btn btn-outline flex items-center"
         >
           <Download size={18} className="mr-2" />
@@ -414,6 +435,7 @@ const BookingsPage: React.FC = () => {
                   Close
                 </button>
                 <button
+                  onClick={() => handleDownloadTicket(selectedBooking)}
                   className="btn btn-primary btn-sm flex items-center"
                 >
                   <Download size={16} className="mr-1" />
