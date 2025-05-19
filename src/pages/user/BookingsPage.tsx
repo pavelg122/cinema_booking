@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { createEmbeddedCheckoutSession } from '../../lib/stripe';
+import { downloadBlob } from '../../lib/downloadHelpers';
 import type { Database } from '../../types/database.types';
 
 type Booking = Database['public']['Tables']['bookings']['Row'] & {
@@ -72,6 +73,16 @@ const BookingsPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to initiate payment');
     } finally {
       setProcessingPayment(null);
+    }
+  };
+
+  const handleDownloadTicket = async (booking: Booking) => {
+    try {
+      const pdfBlob = await api.generateTicketPDF(booking);
+      downloadBlob(pdfBlob, `ticket-${booking.id}.pdf`);
+    } catch (err) {
+      console.error('Error downloading ticket:', err);
+      setError('Failed to download ticket. Please try again.');
     }
   };
 
@@ -208,7 +219,10 @@ const BookingsPage: React.FC = () => {
                         )}
                       </button>
                     ) : (
-                      <button className="btn btn-primary btn-sm flex items-center">
+                      <button 
+                        onClick={() => handleDownloadTicket(booking)}
+                        className="btn btn-primary btn-sm flex items-center"
+                      >
                         <Download className="h-4 w-4 mr-1" />
                         Download Ticket
                       </button>
