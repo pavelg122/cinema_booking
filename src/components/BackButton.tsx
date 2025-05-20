@@ -1,20 +1,16 @@
-import React from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const BackButton: React.FC = () => {
+const BackButton = () => {
   const navigate = useNavigate();
 
   return (
     <button
       onClick={() => navigate(-1)}
-      style={{
-        padding: '8px 12px',
-        fontSize: '14px',
-        cursor: 'pointer',
-        marginBottom: '16px',
-      }}
+      className="flex items-center text-sm text-secondary-300 hover:text-white mb-4"
     >
-      ← Back
+      <ArrowLeft className="w-4 h-4 mr-2" />
+      Back
     </button>
   );
 };
