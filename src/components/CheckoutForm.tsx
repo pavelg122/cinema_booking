@@ -18,6 +18,9 @@ const CheckoutForm = ({ clientSecret, onSuccess }: CheckoutFormProps) => {
 
   const options = {
     clientSecret: clientSecretState,
+    onComplete: (event: { paymentIntent: { id: string } }) => {
+      onSuccess(event.paymentIntent.id);
+    },
   };
 
   return (
