@@ -288,7 +288,7 @@ const SeatSelectionPage: React.FC = () => {
     <div className="section">
       <div className="mb-6">
     <BackButton />
-    <BookingProgress currentStep="seats" />
+    <BookingProgress currentStep=1 />
   </div>
       <div className="mb-8">
         <div className="flex items-center text-sm text-secondary-400 mb-2">
