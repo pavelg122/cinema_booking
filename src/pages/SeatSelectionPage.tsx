@@ -5,6 +5,8 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
+import BackButton from '@/components/BackButton';
+import BookingProgress from '@/components/BookingProgress';
 
 type Screening = Database['public']['Tables']['screenings']['Row'] & {
   movies: Database['public']['Tables']['movies']['Row'];
@@ -284,6 +286,10 @@ const SeatSelectionPage: React.FC = () => {
 
   return (
     <div className="section">
+      <div className="mb-6">
+    <BackButton />
+    <BookingProgress currentStep="seats" />
+  </div>
       <div className="mb-8">
         <div className="flex items-center text-sm text-secondary-400 mb-2">
           <span>Movies</span>
