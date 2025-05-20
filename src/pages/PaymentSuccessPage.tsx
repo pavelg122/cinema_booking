@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Ticket, Film, CreditCard } from 'lucide-react';
 import RatingPopup from '../components/RatingPopup';
 
 const PaymentSuccessPage: React.FC = () => {
   const [showRating, setShowRating] = useState(true);
   const location = useLocation();
-  const { booking, screening, movie, selectedSeats, totalPrice } = location.state || {};
+  const navigate = useNavigate();
+
+  const {
+    booking,
+    screening,
+    movie,
+    selectedSeats,
+    totalPrice,
+    clientSecret,
+    paymentId,
+  } = location.state || {};
 
   if (!booking || !screening || !movie || !selectedSeats) {
     return (
@@ -18,18 +28,41 @@ const PaymentSuccessPage: React.FC = () => {
             Your booking has been created successfully.
           </p>
           <div className="space-y-4">
-            <Link to="/bookings" className="btn btn-primary w-full flex items-center justify-center">
+            <button
+              onClick={() => navigate('/bookings')}
+              className="btn btn-primary w-full flex items-center justify-center"
+            >
               <Ticket className="h-5 w-5 mr-2" />
               View My Bookings
-            </Link>
-            <Link to="/movies" className="btn btn-outline w-full">
+            </button>
+            <button
+              onClick={() => navigate('/movies')}
+              className="btn btn-outline w-full"
+            >
               Browse More Movies
-            </Link>
+            </button>
           </div>
         </div>
       </div>
     );
   }
+
+  const handleCompletePayment = () => {
+    navigate('/checkout', {
+      state: {
+        booking,
+        screening,
+        movie,
+        selectedSeats,
+        totalPrice,
+        clientSecret,
+        paymentId,
+        bookingId: booking.id,
+        // 👇 Use this to go back to Bookings after checkout
+        returnUrl: `${window.location.origin}/bookings`,
+      },
+    });
+  };
 
   return (
     <div className="section flex items-center justify-center min-h-[70vh]">
@@ -74,33 +107,36 @@ const PaymentSuccessPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col space-y-3">
-          <Link 
-            to="/checkout" 
-            state={{ 
-              booking,
-              screening,
-              movie,
-              selectedSeats,
-              totalPrice,
-              bookingId: booking.id,
-              paymentId: booking.payment_id
-            }}
+          <button
+            onClick={handleCompletePayment}
             className="btn btn-primary w-full flex items-center justify-center"
           >
             <CreditCard className="h-5 w-5 mr-2" />
             Complete Payment
-          </Link>
-          <Link to="/bookings" className="btn btn-outline w-full flex items-center justify-center">
+          </button>
+
+          <button
+            onClick={() => navigate('/bookings')}
+            className="btn btn-outline w-full flex items-center justify-center"
+          >
             <Ticket className="h-5 w-5 mr-2" />
             View My Bookings
-          </Link>
-          <Link to={`/movies/${movie.id}`} className="btn btn-outline w-full flex items-center justify-center">
+          </button>
+
+          <button
+            onClick={() => navigate(`/movies/${movie.id}`)}
+            className="btn btn-outline w-full flex items-center justify-center"
+          >
             <Film className="h-5 w-5 mr-2" />
             Movie Details
-          </Link>
-          <Link to="/" className="btn btn-outline w-full">
+          </button>
+
+          <button
+            onClick={() => navigate('/')}
+            className="btn btn-outline w-full"
+          >
             Return to Home
-          </Link>
+          </button>
         </div>
       </div>
 
