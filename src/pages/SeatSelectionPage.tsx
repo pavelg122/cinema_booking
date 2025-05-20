@@ -5,8 +5,8 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Database } from '../types/database.types';
 import type { Seat } from '../types/booking';
-import BackButton from '@/components/BackButton';
-import BookingProgress from '@/components/BookingProgress';
+import BackButton from '../components/BackButton';
+import BookingProgress from '../components/BookingProgress';
 
 type Screening = Database['public']['Tables']['screenings']['Row'] & {
   movies: Database['public']['Tables']['movies']['Row'];
