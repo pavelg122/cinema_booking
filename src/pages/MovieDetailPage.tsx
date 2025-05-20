@@ -92,6 +92,10 @@ const MovieDetailPage: React.FC = () => {
   });
 
   return (
+    <div className="mb-6">
+    <BackButton />
+    <BookingProgress currentStep='1' />
+  </div>
     <div>
       {/* Movie Banner */}
       <div className="relative h-[50vh] bg-secondary-950">
@@ -104,10 +108,7 @@ const MovieDetailPage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-secondary-950 via-secondary-900/90 to-secondary-950/70"></div>
         </div>
       </div>
-      <div className="mb-6">
-    <BackButton />
-    <BookingProgress currentStep='1' />
-  </div>
+      
       <div className="section -mt-48 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Movie Poster */}
