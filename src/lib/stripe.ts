@@ -52,8 +52,12 @@ export const createEmbeddedCheckoutSession = async (params: {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to create checkout session');
     }
+const data = await response.json();
+    if (!data.clientSecret) {
+      throw new Error('No client secret received from checkout session');
+    }
 
-    return await response.json(); // should contain { clientSecret }
+    return data;
   } catch (error) {
     console.error('Error creating checkout session:', error);
     throw error;
