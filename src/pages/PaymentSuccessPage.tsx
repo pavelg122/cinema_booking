@@ -22,10 +22,6 @@ const PaymentSuccessPage: React.FC = () => {
 
   if (!booking || !screening || !movie || !selectedSeats) {
     return (
-      <div className="mb-6">
-    <BackButton />
-    <BookingProgress currentStep='3' />
-  </div>
       <div className="section flex items-center justify-center min-h-[70vh]">
         <div className="bg-secondary-800 rounded-lg p-8 max-w-md w-full text-center">
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
