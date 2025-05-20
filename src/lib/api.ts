@@ -110,7 +110,7 @@ export const api = {
   async getSeatsForScreening(screeningId: string) {
     const { data: screening, error: screeningError } = await supabase
       .from('screenings')
-      .select('hall_id')
+      .select('hall_id, price')
       .eq('id', screeningId)
       .single();
     
@@ -141,22 +141,22 @@ export const api = {
       const { data: bookedSeats, error: bookedSeatsError } = await supabase
         .from('booked_seats')
         .select('seat_id')
-        .in('booking_id', bookings.map(b => b.id));
+        .in('booking_id', bookings.map((b: { id: string }) => b.id));
       
       if (bookedSeatsError) throw bookedSeatsError;
       
-      bookedSeatIds = new Set(bookedSeats?.map(bs => bs.seat_id) || []);
+      bookedSeatIds = new Set(bookedSeats?.map((bs: { seat_id: string }) => bs.seat_id) || []);
     }
 
-    return seatRows?.map(row => ({
+    return seatRows?.map((row: { row_letter: string; seats: Array<{ id: string; seat_number: number; type: string; price: number }> }) => ({
       row: row.row_letter,
-      seats: row.seats.map(seat => ({
+      seats: row.seats.map((seat: { id: string; seat_number: number; type: string; price: number }) => ({
         id: seat.id,
         row: row.row_letter,
         number: seat.seat_number,
         type: seat.type,
         status: bookedSeatIds.has(seat.id) ? 'occupied' : 'available',
-        price: seat.price
+        price: seat.price + screening.price
       }))
     })) || [];
   },
