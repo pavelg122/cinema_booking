@@ -6,12 +6,12 @@ const BackButton = () => {
 
   return (
     <button
-      onClick={() => navigate(-1)}
-      className="flex items-center text-sm text-secondary-300 hover:text-white mb-4"
-    >
-      <ArrowLeft className="w-4 h-4 mr-2" />
-      Back
-    </button>
+          onClick={() => navigate(-1)}
+          className="flex items-center text-primary-500 hover:text-primary-400 transition-colors mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </button>
   );
 };
 
