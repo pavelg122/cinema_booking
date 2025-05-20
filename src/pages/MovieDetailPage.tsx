@@ -90,11 +90,11 @@ const MovieDetailPage: React.FC = () => {
   });
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="mb-6">
     <BackButton />
     <BookingProgress currentStep='1' />
   </div>
+    <div>
       {/* Movie Banner */}
       <div className="relative h-[50vh] bg-secondary-950">
         <div className="absolute inset-0 z-0">
