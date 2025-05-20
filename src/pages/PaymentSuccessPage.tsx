@@ -67,7 +67,7 @@ const PaymentSuccessPage: React.FC = () => {
   };
 
   return (
-<>
+    <>
     <div className="section">
       <BookingProgress currentStep={3} />
       <BackButton />
