@@ -55,6 +55,7 @@ const BookingsPage: React.FC = () => {
         reservationIds: [], // We don't need this anymore
         movieTitle: booking.screenings.movies.title,
         returnUrl: `${window.location.origin}/payment-success`,
+        bookingId: booking.id
       });
 
       navigate('/checkout', {
