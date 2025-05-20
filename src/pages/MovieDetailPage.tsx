@@ -90,10 +90,6 @@ const MovieDetailPage: React.FC = () => {
   });
 
   return (
-    <div className="mb-6">
-    <BackButton />
-    <BookingProgress currentStep='1' />
-  </div>
     <div>
       {/* Movie Banner */}
       <div className="relative h-[50vh] bg-secondary-950">
