@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, Ticket, Film, CreditCard } from 'lucide-react';
 import RatingPopup from '../components/RatingPopup';
-import BackButton from '../components/BackButton';
-import BookingProgress from '../components/BookingProgress';
+
 
 const PaymentSuccessPage: React.FC = () => {
   const [showRating, setShowRating] = useState(true);
@@ -67,12 +66,6 @@ const PaymentSuccessPage: React.FC = () => {
   };
 
   return (
-    <>
-    <div className="section">
-      <BookingProgress currentStep={3} />
-      <BackButton />
-    </div>
-    
     <div className="section flex items-center justify-center min-h-[70vh]">
       <div className="bg-secondary-800 rounded-lg p-8 max-w-md w-full text-center">
         <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
